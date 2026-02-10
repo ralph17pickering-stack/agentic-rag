@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     llm_api_key: str = "not-needed"
     llm_model: str = "local-model"
 
+    embedding_model: str = "local-model"
+    embedding_dim: int = 1536
+    chunk_size: int = 500
+    chunk_overlap: int = 50
+
     langchain_tracing_v2: bool = True
     langchain_api_key: str = ""
     langchain_project: str = "agentic-rag"

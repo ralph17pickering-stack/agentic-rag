@@ -58,3 +58,32 @@ Since the project doesn't use `supabase init` / `config.toml`, migrations are ap
 The host machine doesn't have `psql` installed. Options:
 - Use `docker exec supabase-db psql ...` (preferred)
 - Use Python with `psycopg2-binary` through the backend venv and connect via Supavisor
+
+---
+
+## Session: Module 2 — Document Ingestion & Retrieval
+
+### Local LLM Embeddings Require Explicit Startup Flag
+
+The local LLM server at `:8081` does **not** serve the `/v1/embeddings` endpoint by default. Calling it returns:
+```json
+{"error":{"code":501,"message":"This server does not support embeddings. Start it with `--embeddings`","type":"not_supported_error"}}
+```
+
+**Action needed**: Restart the local LLM with the `--embeddings` flag before testing ingestion or retrieval. Verify the embedding dimension matches `embedding_dim` in `backend/app/config.py` (default: 1536).
+
+### pgvector Works Out of the Box in Supabase Self-Hosted
+
+`CREATE EXTENSION IF NOT EXISTS vector` succeeds without any extra setup in the `supabase-db` container. No need to install packages or modify Dockerfiles — the extension is pre-bundled.
+
+### Supabase Storage Bucket Must Exist Before Upload
+
+Storage uploads fail if the bucket doesn't exist. The app creates the `documents` bucket at startup via the `lifespan` handler using the service role client. This runs once per server start — if the bucket already exists, it's a no-op.
+
+### Service Role Client for Background Tasks
+
+Background ingestion (`asyncio.create_task`) has no user JWT, so it can't use the normal RLS-scoped Supabase client. The `get_service_supabase_client()` uses the service role key to bypass RLS. The `user_id` is set explicitly on each inserted row to maintain data ownership.
+
+### Splitting Migration Files for Functions
+
+RPC functions like `match_chunks` are kept in a separate migration file (`002b_match_chunks_function.sql`) from table definitions. This makes it easy to `CREATE OR REPLACE FUNCTION` independently when the function signature or logic changes, without re-running table creation.

@@ -9,3 +9,5 @@ sse-starlette>=2.2.0
 supabase>=2.11.0
 langsmith>=0.2.0
 python-dotenv>=1.0.0
+python-multipart>=0.0.9
+tiktoken>=0.8.0

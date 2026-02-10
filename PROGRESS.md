@@ -20,7 +20,23 @@ Track your progress through the masterclass. Update this file as you complete mo
 - [x] **Manual step: Create Supabase project, run migration, populate .env files**
 
 ### Module 2: BYO Retrieval + Memory
-- [ ] Not started
+- [x] Database schema: documents + chunks tables, pgvector extension, HNSW index, RLS, Realtime
+- [x] match_chunks RPC function (similarity search with RLS)
+- [x] Backend config: embedding_model, embedding_dim, chunk_size, chunk_overlap
+- [x] Dependencies: python-multipart, tiktoken
+- [x] Service role Supabase client (bypasses RLS for background ingestion)
+- [x] Embedding service (batch + single, @traceable)
+- [x] Chunker service (tiktoken cl100k_base, fixed-size with overlap)
+- [x] Document models (Pydantic)
+- [x] Ingestion pipeline (download → chunk → embed → store, background async)
+- [x] Documents API (GET/POST/DELETE /api/documents)
+- [x] Storage bucket auto-creation on startup
+- [x] Retrieval service (query embedding → match_chunks RPC)
+- [-] Tool-calling chat refactor (retrieve_documents tool definition + flow)
+- [ ] Frontend: Documents UI (upload, list, delete, status badges)
+- [ ] Frontend: Realtime status updates via Supabase
+- [ ] Frontend: Chat/Documents nav toggle
+- [ ] Integration testing + polish
 
 ### Module 3: Record Manager
 - [ ] Not started

@@ -22,7 +22,7 @@ export function useDocuments() {
     }
   }, [])
 
-  const uploadDocument = useCallback(async (file: File) => {
+  const uploadDocument = useCallback(async (file: File): Promise<Document> => {
     setUploading(true)
     try {
       const { data: { session } } = await supabase.auth.getSession()
@@ -42,8 +42,16 @@ export function useDocuments() {
         throw new Error(err.detail || "Upload failed")
       }
 
-      const doc = await res.json()
-      setDocuments(prev => [doc, ...prev])
+      const doc: Document = await res.json()
+
+      if (!doc.is_duplicate) {
+        // For replacements (same filename, different content), remove old entry
+        setDocuments(prev => {
+          const filtered = prev.filter(d => d.id !== doc.id && d.filename !== doc.filename)
+          return [doc, ...filtered]
+        })
+      }
+
       return doc
     } finally {
       setUploading(false)

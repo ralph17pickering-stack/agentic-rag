@@ -39,10 +39,24 @@ Track your progress through the masterclass. Update this file as you complete mo
 - [x] Integration testing + polish
 
 ### Module 3: Record Manager
-- [ ] Not started
+- [x] Database migration: content_hash columns + indexes on documents and chunks
+- [x] Hashing utility (sha256_hex, sha256_text)
+- [x] Chunker: content_hash on each chunk
+- [x] Pydantic model: content_hash, is_duplicate fields
+- [x] Document router: dedup logic (exact duplicate → 200, same filename → replace, new → 201)
+- [x] Ingestion: store chunk content_hash, existence check before processing
+- [x] Frontend: TypeScript types, upload hook returns Document, duplicate info banner
 
 ### Module 4: Metadata Extraction
-- [ ] Not started
+- [x] Database migration: title, summary, topics, document_date columns + updated match_chunks RPC
+- [x] Metadata extraction service (LLM-based with graceful fallback)
+- [x] Ingestion pipeline: extract metadata before chunking, store on document
+- [x] Pydantic model: metadata fields on DocumentResponse
+- [x] Retrieval: date filtering + recency boost params passed through to match_chunks
+- [x] LLM tool definition: date_from, date_to, recency_weight optional params
+- [x] Context format: chunk headers include doc title, date, topics, score
+- [x] Chat router: forwards kwargs to retrieval
+- [x] Frontend: TS types + DocumentsPanel displays title, summary, topics, date
 
 ### Module 5: Multi-Format Support
 - [ ] Not started

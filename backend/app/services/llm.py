@@ -34,7 +34,19 @@ TOOLS = [
                     "query": {
                         "type": "string",
                         "description": "The search query to find relevant document chunks.",
-                    }
+                    },
+                    "date_from": {
+                        "type": "string",
+                        "description": "Optional start date filter (YYYY-MM-DD). Only return documents from this date onward.",
+                    },
+                    "date_to": {
+                        "type": "string",
+                        "description": "Optional end date filter (YYYY-MM-DD). Only return documents up to this date.",
+                    },
+                    "recency_weight": {
+                        "type": "number",
+                        "description": "Weight between 0 and 1 for recency bias. 0 = pure similarity, higher values favor newer documents.",
+                    },
                 },
                 "required": ["query"],
             },
@@ -43,7 +55,7 @@ TOOLS = [
 ]
 
 # Type alias for the retrieval callback
-RetrieveFn = Callable[[str], Awaitable[list[dict]]]
+RetrieveFn = Callable[..., Awaitable[list[dict]]]
 
 
 @traceable(name="chat_completion", run_type="llm")
@@ -90,16 +102,31 @@ async def stream_chat_completion(
         args = json.loads(tool_call.function.arguments)
         query = args.get("query", messages[-1]["content"] if messages else "")
 
-        # Execute retrieval
-        chunks = await retrieve_fn(query)
+        # Extract optional retrieval params
+        retrieve_kwargs = {}
+        if "date_from" in args:
+            retrieve_kwargs["date_from"] = args["date_from"]
+        if "date_to" in args:
+            retrieve_kwargs["date_to"] = args["date_to"]
+        if "recency_weight" in args:
+            retrieve_kwargs["recency_weight"] = float(args["recency_weight"])
 
-        # Build tool result
+        # Execute retrieval
+        chunks = await retrieve_fn(query, **retrieve_kwargs)
+
+        # Build tool result with metadata
         if chunks:
             context_parts = []
             for i, c in enumerate(chunks, 1):
-                context_parts.append(
-                    f"[Chunk {i}] (similarity: {c.get('similarity', 0):.2f})\n{c['content']}"
-                )
+                header = f"[Chunk {i}]"
+                if c.get("doc_title"):
+                    header += f" (from: {c['doc_title']})"
+                if c.get("doc_date"):
+                    header += f" [date: {c['doc_date']}]"
+                if c.get("doc_topics"):
+                    header += f" [topics: {', '.join(c['doc_topics'])}]"
+                header += f" (score: {c.get('similarity', 0):.2f})"
+                context_parts.append(f"{header}\n{c['content']}")
             tool_result = "\n\n".join(context_parts)
         else:
             tool_result = "No relevant documents found."

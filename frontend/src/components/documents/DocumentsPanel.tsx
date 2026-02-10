@@ -6,7 +6,7 @@ interface DocumentsPanelProps {
   documents: Document[]
   loading: boolean
   uploading: boolean
-  onUpload: (file: File) => Promise<void>
+  onUpload: (file: File) => Promise<Document>
   onDelete: (id: string) => Promise<void>
 }
 
@@ -23,6 +23,11 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00")
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+}
+
 export function DocumentsPanel({
   documents,
   loading,
@@ -33,17 +38,22 @@ export function DocumentsPanel({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [info, setInfo] = useState<string | null>(null)
 
   const handleFile = useCallback(
     async (file: File) => {
       setError(null)
+      setInfo(null)
       const ext = file.name.split(".").pop()?.toLowerCase()
       if (!ext || !["txt", "md"].includes(ext)) {
         setError("Only .txt and .md files are supported")
         return
       }
       try {
-        await onUpload(file)
+        const doc = await onUpload(file)
+        if (doc.is_duplicate) {
+          setInfo(`${file.name} is already uploaded with identical content. Skipped.`)
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Upload failed")
       }
@@ -100,6 +110,10 @@ export function DocumentsPanel({
         <p className="text-sm text-red-600 mt-2">{error}</p>
       )}
 
+      {info && (
+        <p className="text-sm text-blue-600 mt-2">{info}</p>
+      )}
+
       {/* Document list */}
       <div className="mt-6 flex-1 overflow-y-auto">
         {loading ? (
@@ -116,9 +130,15 @@ export function DocumentsPanel({
                 className="flex items-center justify-between rounded-lg border p-3 group"
               >
                 <div className="flex-1 min-w-0 mr-3">
-                  <p className="font-medium truncate">{doc.filename}</p>
+                  <p className="font-medium truncate">{doc.title || doc.filename}</p>
+                  {doc.title && (
+                    <p className="text-xs text-muted-foreground truncate">{doc.filename}</p>
+                  )}
                   <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
                     <span>{formatSize(doc.file_size)}</span>
+                    {doc.document_date && (
+                      <span>{formatDate(doc.document_date)}</span>
+                    )}
                     {doc.status === "ready" && (
                       <span>{doc.chunk_count} chunks</span>
                     )}
@@ -128,6 +148,21 @@ export function DocumentsPanel({
                       {doc.status}
                     </span>
                   </div>
+                  {doc.status === "ready" && doc.summary && (
+                    <p className="text-xs text-muted-foreground mt-1 truncate">{doc.summary}</p>
+                  )}
+                  {doc.topics && doc.topics.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {doc.topics.map((topic) => (
+                        <span
+                          key={topic}
+                          className="bg-primary/10 text-primary text-xs rounded-full px-2 py-0.5"
+                        >
+                          {topic}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {doc.status === "error" && doc.error_message && (
                     <p className="text-xs text-red-600 mt-1 truncate">
                       {doc.error_message}

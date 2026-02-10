@@ -3,6 +3,7 @@ from langsmith import traceable
 from app.services.supabase import get_service_supabase_client
 from app.services.chunker import chunk_text
 from app.services.embeddings import generate_embeddings
+from app.services.metadata import extract_metadata
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,12 @@ async def ingest_document(document_id: str, user_id: str, storage_path: str):
     sb = get_service_supabase_client()
 
     try:
+        # Verify document still exists (may have been replaced)
+        doc_check = sb.table("documents").select("id").eq("id", document_id).execute()
+        if not doc_check.data:
+            logger.info(f"Document {document_id} no longer exists, skipping ingestion")
+            return
+
         # Update status → processing
         sb.table("documents").update({"status": "processing"}).eq(
             "id", document_id
@@ -30,6 +37,9 @@ async def ingest_document(document_id: str, user_id: str, storage_path: str):
                 {"status": "error", "error_message": "File is empty"}
             ).eq("id", document_id).execute()
             return
+
+        # Extract metadata via LLM
+        metadata = await extract_metadata(text)
 
         # Chunk text
         chunks = chunk_text(text)
@@ -54,14 +64,22 @@ async def ingest_document(document_id: str, user_id: str, storage_path: str):
                     "embedding": emb,
                     "chunk_index": chunk.chunk_index,
                     "token_count": chunk.token_count,
+                    "content_hash": chunk.content_hash,
                 }
                 for chunk, emb in zip(batch_chunks, batch_embeddings)
             ]
             sb.table("chunks").insert(rows).execute()
 
-        # Update status → ready
+        # Update status → ready with metadata
         sb.table("documents").update(
-            {"status": "ready", "chunk_count": len(chunks)}
+            {
+                "status": "ready",
+                "chunk_count": len(chunks),
+                "title": metadata.title,
+                "summary": metadata.summary,
+                "topics": metadata.topics,
+                "document_date": metadata.document_date.isoformat() if metadata.document_date else None,
+            }
         ).eq("id", document_id).execute()
 
         logger.info(

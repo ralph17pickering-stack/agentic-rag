@@ -1,9 +1,11 @@
 import asyncio
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from fastapi.responses import JSONResponse
 from app.dependencies import get_current_user
 from app.services.supabase import get_supabase_client
 from app.services.ingestion import ingest_document
+from app.services.hashing import sha256_hex
 from app.models.documents import DocumentResponse
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
@@ -24,7 +26,7 @@ async def list_documents(user: dict = Depends(get_current_user)):
     return result.data
 
 
-@router.post("", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
+@router.post("")
 async def upload_document(
     file: UploadFile = File(...),
     user: dict = Depends(get_current_user),
@@ -46,9 +48,39 @@ async def upload_document(
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(status_code=400, detail="File exceeds 10 MB limit")
 
+    content_hash = sha256_hex(content)
+    sb = get_supabase_client(user["token"])
+
+    # Check for exact duplicate (same user + same content hash)
+    existing = (
+        sb.table("documents")
+        .select("*")
+        .eq("user_id", user["id"])
+        .eq("content_hash", content_hash)
+        .execute()
+    )
+    if existing.data:
+        doc = existing.data[0]
+        doc["is_duplicate"] = True
+        return JSONResponse(content=doc, status_code=200)
+
+    # Check for same filename → replace (delete old, insert new)
+    same_name = (
+        sb.table("documents")
+        .select("*")
+        .eq("user_id", user["id"])
+        .eq("filename", file.filename)
+        .execute()
+    )
+    for old_doc in same_name.data:
+        try:
+            sb.storage.from_("documents").remove([old_doc["storage_path"]])
+        except Exception:
+            pass
+        sb.table("documents").delete().eq("id", old_doc["id"]).execute()
+
     # Upload to Supabase Storage
     storage_path = f"{user['id']}/{uuid.uuid4().hex}_{file.filename}"
-    sb = get_supabase_client(user["token"])
     sb.storage.from_("documents").upload(
         storage_path, content, {"content-type": file.content_type or "text/plain"}
     )
@@ -63,6 +95,7 @@ async def upload_document(
                 "storage_path": storage_path,
                 "file_type": ext,
                 "file_size": len(content),
+                "content_hash": content_hash,
                 "status": "pending",
             }
         )
@@ -75,7 +108,7 @@ async def upload_document(
         ingest_document(document["id"], user["id"], storage_path)
     )
 
-    return document
+    return JSONResponse(content=document, status_code=201)
 
 
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)

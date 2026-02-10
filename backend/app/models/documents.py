@@ -13,5 +13,11 @@ class DocumentResponse(BaseModel):
     status: Literal["pending", "processing", "ready", "error"]
     error_message: str | None = None
     chunk_count: int
+    content_hash: str | None = None
+    is_duplicate: bool = False
+    title: str | None = None
+    summary: str | None = None
+    topics: list[str] = []
+    document_date: str | None = None
     created_at: datetime
     updated_at: datetime

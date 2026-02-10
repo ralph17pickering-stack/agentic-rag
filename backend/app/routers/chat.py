@@ -65,8 +65,8 @@ async def chat(
     if doc_check.count and doc_check.count > 0:
         user_token = user["token"]
 
-        async def retrieve_fn(query: str) -> list[dict]:
-            return await retrieve_chunks(query, user_token)
+        async def retrieve_fn(query: str, **kwargs) -> list[dict]:
+            return await retrieve_chunks(query, user_token, **kwargs)
 
     async def event_generator():
         full_content = ""

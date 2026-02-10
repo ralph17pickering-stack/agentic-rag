@@ -4,10 +4,14 @@ import { LoginForm } from "@/components/auth/LoginForm"
 import { SignUpForm } from "@/components/auth/SignUpForm"
 import { Header } from "@/components/layout/Header"
 import { ChatLayout } from "@/components/chat/ChatLayout"
+import { DocumentsLayout } from "@/components/documents/DocumentsLayout"
+
+type View = "chat" | "documents"
 
 function App() {
   const { user, loading, signIn, signUp, signOut } = useAuth()
   const [isSignUp, setIsSignUp] = useState(false)
+  const [view, setView] = useState<View>("chat")
 
   if (loading) {
     return (
@@ -31,8 +35,13 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col">
-      <Header email={user.email || ""} onSignOut={signOut} />
-      <ChatLayout />
+      <Header
+        email={user.email || ""}
+        view={view}
+        onViewChange={setView}
+        onSignOut={signOut}
+      />
+      {view === "chat" ? <ChatLayout /> : <DocumentsLayout />}
     </div>
   )
 }

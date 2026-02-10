@@ -70,7 +70,7 @@ The local LLM server at `:8081` does **not** serve the `/v1/embeddings` endpoint
 {"error":{"code":501,"message":"This server does not support embeddings. Start it with `--embeddings`","type":"not_supported_error"}}
 ```
 
-**Action needed**: Restart the local LLM with the `--embeddings` flag before testing ingestion or retrieval. Verify the embedding dimension matches `embedding_dim` in `backend/app/config.py` (default: 1536).
+**Action needed**: Restart the local LLM with the `--embeddings` flag before testing ingestion or retrieval. Verify the embedding dimension matches `embedding_dim` in `backend/app/config.py` (currently: 2048).
 
 ### pgvector Works Out of the Box in Supabase Self-Hosted
 
@@ -87,3 +87,25 @@ Background ingestion (`asyncio.create_task`) has no user JWT, so it can't use th
 ### Splitting Migration Files for Functions
 
 RPC functions like `match_chunks` are kept in a separate migration file (`002b_match_chunks_function.sql`) from table definitions. This makes it easy to `CREATE OR REPLACE FUNCTION` independently when the function signature or logic changes, without re-running table creation.
+
+### HNSW Index Has a 2000-Dimension Limit in pgvector
+
+When the local embedding model returns 2048-dimensional vectors, `CREATE INDEX USING hnsw` fails:
+```
+ERROR: column cannot have more than 2000 dimensions for hnsw index
+```
+
+**Workaround**: Skip the HNSW index entirely — sequential scan is fine for dev-scale data. If performance becomes an issue, use IVFFlat instead (no dimension limit, but requires `lists` parameter tuning based on dataset size).
+
+### Tool-Calling Chat: Non-Streaming First, Streaming Second
+
+When integrating tool calling with SSE streaming, use a two-phase approach:
+1. **Non-streaming call with tools** — detect if the LLM wants to call a tool
+2. **If tool call**: execute the tool, append the result, then make a **streaming call** for the final response
+3. **If no tool call**: yield the content from the non-streaming response directly
+
+This avoids the complexity of parsing tool calls from a streaming response. The first call is fast (just deciding whether to use a tool), so the user barely notices the non-streaming phase.
+
+### FormData Uploads: Don't Set Content-Type
+
+When uploading files via `FormData`, do **not** set `Content-Type: application/json` (the default in `apiFetch`). The browser must auto-set the multipart boundary. Use `fetch` directly instead of `apiFetch` for file uploads.

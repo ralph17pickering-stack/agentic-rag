@@ -32,11 +32,11 @@ Track your progress through the masterclass. Update this file as you complete mo
 - [x] Documents API (GET/POST/DELETE /api/documents)
 - [x] Storage bucket auto-creation on startup
 - [x] Retrieval service (query embedding → match_chunks RPC)
-- [-] Tool-calling chat refactor (retrieve_documents tool definition + flow)
-- [ ] Frontend: Documents UI (upload, list, delete, status badges)
-- [ ] Frontend: Realtime status updates via Supabase
-- [ ] Frontend: Chat/Documents nav toggle
-- [ ] Integration testing + polish
+- [x] Tool-calling chat refactor (retrieve_documents tool definition + flow)
+- [x] Frontend: Documents UI (upload, list, delete, status badges)
+- [x] Frontend: Realtime status updates via Supabase
+- [x] Frontend: Chat/Documents nav toggle
+- [x] Integration testing + polish
 
 ### Module 3: Record Manager
 - [ ] Not started

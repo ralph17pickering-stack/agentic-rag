@@ -4,6 +4,7 @@ from sse_starlette.sse import EventSourceResponse
 from app.dependencies import get_current_user
 from app.services.supabase import get_supabase_client
 from app.services.llm import stream_chat_completion, client
+from app.services.retrieval import retrieve_chunks
 from app.models.messages import MessageCreate, MessageResponse
 from app.config import settings
 
@@ -51,9 +52,25 @@ async def chat(
         {"role": m["role"], "content": m["content"]} for m in result.data
     ]
 
+    # Check if user has any ready documents — if so, enable retrieval
+    retrieve_fn = None
+    doc_check = (
+        sb.table("documents")
+        .select("id", count="exact")
+        .eq("user_id", user["id"])
+        .eq("status", "ready")
+        .limit(1)
+        .execute()
+    )
+    if doc_check.count and doc_check.count > 0:
+        user_token = user["token"]
+
+        async def retrieve_fn(query: str) -> list[dict]:
+            return await retrieve_chunks(query, user_token)
+
     async def event_generator():
         full_content = ""
-        async for token in stream_chat_completion(messages_for_llm, thread_id=thread_id, user_id=user["id"]):
+        async for token in stream_chat_completion(messages_for_llm, thread_id=thread_id, user_id=user["id"], retrieve_fn=retrieve_fn):
             full_content += token
             yield {"data": json.dumps({"token": token})}
 

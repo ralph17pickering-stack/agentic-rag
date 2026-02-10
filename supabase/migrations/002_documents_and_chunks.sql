@@ -31,7 +31,7 @@ CREATE TABLE chunks (
     document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
-    embedding vector(1536),
+    embedding vector(2048),
     chunk_index INTEGER NOT NULL,
     token_count INTEGER NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -40,8 +40,9 @@ CREATE TABLE chunks (
 CREATE INDEX idx_chunks_document_id ON chunks(document_id);
 CREATE INDEX idx_chunks_user_id ON chunks(user_id);
 
--- HNSW index for fast cosine similarity search
-CREATE INDEX idx_chunks_embedding ON chunks USING hnsw (embedding vector_cosine_ops);
+-- Note: HNSW index has a 2000-dim limit in pgvector.
+-- With 2048-dim embeddings, sequential scan is used (fine for dev-scale).
+-- Add IVFFlat index when dataset grows: CREATE INDEX ... USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
 -- Enable RLS
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;

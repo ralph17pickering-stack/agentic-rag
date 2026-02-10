@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     llm_model: str = "local-model"
 
     embedding_model: str = "local-model"
-    embedding_dim: int = 1536
+    embedding_dim: int = 2048
     chunk_size: int = 500
     chunk_overlap: int = 50
 

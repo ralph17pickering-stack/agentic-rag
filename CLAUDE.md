@@ -38,3 +38,4 @@ RAG app with chat (default) and document ingestion interfaces. Config via env va
 
 ## Progress
 Check PROGRESS.md for current module status. Update it as you complete tasks.
+Check and update LESSONS.md to take into account important takeaways from each session so that you can learn from what works and what doesn't.

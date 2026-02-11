@@ -12,7 +12,7 @@ interface ThreadSidebarProps {
 
 export function ThreadSidebar({ threads, activeThreadId, onSelect, onCreate, onDelete }: ThreadSidebarProps) {
   return (
-    <div className="flex h-full w-64 flex-col border-r">
+    <div className="flex h-full w-64 shrink-0 flex-col border-r">
       <div className="p-3">
         <Button onClick={onCreate} className="w-full" size="sm">
           New Chat

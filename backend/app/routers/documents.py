@@ -1,5 +1,6 @@
 import asyncio
 import uuid
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, File, status
 from starlette.datastructures import UploadFile
 from fastapi.responses import JSONResponse
@@ -7,7 +8,7 @@ from app.dependencies import get_current_user
 from app.services.supabase import get_supabase_client, get_service_supabase_client
 from app.services.ingestion import ingest_document
 from app.services.hashing import sha256_hex
-from app.models.documents import DocumentResponse
+from app.models.documents import DocumentResponse, UrlIngestRequest
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
@@ -155,3 +156,73 @@ async def delete_document(
 
     # Delete document (chunks cascade via FK)
     sb.table("documents").delete().eq("id", document_id).execute()
+
+
+@router.post("/from-url")
+async def ingest_from_url(
+    body: UrlIngestRequest,
+    user: dict = Depends(get_current_user),
+):
+    # Fetch URL content
+    try:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as http:
+            resp = await http.get(body.url)
+            resp.raise_for_status()
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch URL: {e}")
+
+    content = resp.content
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="URL returned empty content")
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="Content exceeds 10 MB limit")
+
+    content_hash = sha256_hex(content)
+    sb = get_supabase_client(user["token"])
+
+    # Check for exact duplicate
+    existing = (
+        sb.table("documents")
+        .select("*")
+        .eq("user_id", user["id"])
+        .eq("content_hash", content_hash)
+        .execute()
+    )
+    if existing.data:
+        doc = existing.data[0]
+        doc["is_duplicate"] = True
+        return JSONResponse(content=doc, status_code=200)
+
+    filename = body.title or body.url
+    storage_path = f"{user['id']}/{uuid.uuid4().hex}_{filename[:80]}.html"
+
+    # Upload to storage via service role
+    service_sb = get_service_supabase_client()
+    service_sb.storage.from_("documents").upload(
+        storage_path, content, {"content-type": "text/html"}
+    )
+
+    # Create document record
+    doc = (
+        sb.table("documents")
+        .insert(
+            {
+                "user_id": user["id"],
+                "filename": filename,
+                "storage_path": storage_path,
+                "file_type": "html",
+                "file_size": len(content),
+                "content_hash": content_hash,
+                "status": "pending",
+            }
+        )
+        .execute()
+    )
+    document = doc.data[0]
+
+    # Background ingestion
+    asyncio.create_task(
+        ingest_document(document["id"], user["id"], storage_path, "html")
+    )
+
+    return JSONResponse(content=document, status_code=201)

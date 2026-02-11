@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 
 interface MessageInputProps {
@@ -8,20 +8,22 @@ interface MessageInputProps {
 
 export function MessageInput({ onSend, disabled }: MessageInputProps) {
   const [content, setContent] = useState("")
+  const contentRef = useRef(content)
+  contentRef.current = content
 
-  const handleSubmit = useCallback(() => {
-    const trimmed = content.trim()
+  const handleSubmit = () => {
+    const trimmed = contentRef.current.trim()
     if (!trimmed || disabled) return
     onSend(trimmed)
     setContent("")
-  }, [content, disabled, onSend])
+  }
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       handleSubmit()
     }
-  }, [handleSubmit])
+  }
 
   return (
     <div className="border-t p-4">

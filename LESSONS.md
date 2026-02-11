@@ -195,3 +195,31 @@ Don't trust the exit code or lack of error output — especially with piped comm
 ### Supabase SQL Editor as Migration Fallback
 
 When `docker exec` is problematic (permissions, missing `-i` flag, credential issues), the Supabase Studio SQL editor (accessible via the web UI) is a reliable alternative for running migrations manually.
+
+---
+
+## Session: Module 7 — Additional Tools
+
+### Multi-Tool Dispatch Generalizes Cleanly
+
+The single-tool two-phase approach (non-streaming tool check → streaming final) generalizes to multi-tool with a loop: up to N rounds of non-streaming tool-check calls, processing all tool calls per round, then streaming the final response. The `ToolContext` dataclass replaces individual callback params and scales to any number of tools.
+
+### ToolEvent Pattern for Non-Token SSE Data
+
+When tools produce structured data for the frontend (e.g., web search results for a sidebar), yield a `ToolEvent` dataclass alongside token strings from the generator. The chat router checks `isinstance(event, ToolEvent)` and emits a different SSE field (`web_results` instead of `token`). This keeps the streaming interface clean — callers handle `str | ToolEvent`.
+
+### SECURITY INVOKER for User-Scoped SQL Execution
+
+Postgres functions default to `SECURITY DEFINER` (runs as the function owner). For text-to-SQL where the user's RLS context must apply, use `SECURITY INVOKER` so the function inherits the calling role's permissions. Combined with prefix + keyword checks, this safely restricts to read-only queries on user-visible data.
+
+### Flex Layouts with Multiple Sidebars
+
+When a flex row has two fixed-width sidebars plus a flexible center, all fixed-width children need `shrink-0` or the browser may compress them. The center column needs `min-w-0` to allow it to shrink below its content size. Avoid `overflow-hidden` on the outer container as it breaks inner scroll areas — instead constrain each child properly.
+
+### Long URLs Break Sidebar Layouts
+
+URLs in sidebar cards will expand the card beyond its parent width. Use `overflow-hidden` on the card, `break-all` on URL text, and `truncate` where single-line display is acceptable.
+
+### useCallback Stale Closure Pitfall
+
+Chaining `useCallback` hooks (e.g., `handleKeyDown` depends on `handleSubmit` which depends on `content`) can create stale closures where the inner callback captures an outdated state value. Using a ref (`contentRef.current = content`) avoids the dependency chain entirely.

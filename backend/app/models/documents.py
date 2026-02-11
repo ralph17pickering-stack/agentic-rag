@@ -3,6 +3,11 @@ from datetime import datetime
 from typing import Literal
 
 
+class UrlIngestRequest(BaseModel):
+    url: str
+    title: str | None = None
+
+
 class DocumentResponse(BaseModel):
     id: str
     user_id: str

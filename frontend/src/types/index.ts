@@ -15,6 +15,12 @@ export interface Message {
   created_at: string
 }
 
+export interface WebResult {
+  title: string
+  url: string
+  snippet: string
+}
+
 export interface Document {
   id: string
   user_id: string

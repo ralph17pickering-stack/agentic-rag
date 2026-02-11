@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react"
 import { apiFetch } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
-import type { Message } from "@/types"
+import type { Message, WebResult } from "@/types"
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8001"
 
@@ -10,6 +10,7 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingContent, setStreamingContent] = useState("")
   const [loading, setLoading] = useState(false)
+  const [webResults, setWebResults] = useState<WebResult[]>([])
 
   const fetchMessages = useCallback(async (tid: string) => {
     setLoading(true)
@@ -39,6 +40,7 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
     setMessages(prev => [...prev, tempUserMsg])
     setIsStreaming(true)
     setStreamingContent("")
+    setWebResults([])
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
@@ -76,6 +78,9 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
 
           try {
             const data = JSON.parse(jsonStr)
+            if (data.web_results) {
+              setWebResults(data.web_results)
+            }
             if (data.done) {
               // Final event with saved message
               if (data.message) {
@@ -106,6 +111,7 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
     isStreaming,
     streamingContent,
     loading,
+    webResults,
     fetchMessages,
     sendMessage,
     setMessages,

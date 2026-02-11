@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     rerank_top_n: int = 5
     retrieval_candidates: int = 20     # per-method fetch count before merge
 
+    perplexity_api_key: str = ""
+    perplexity_model: str = "sonar"
+    web_search_enabled: bool = True
+    sql_tool_enabled: bool = True
+
     langchain_tracing_v2: bool = True
     langchain_api_key: str = ""
     langchain_project: str = "agentic-rag"

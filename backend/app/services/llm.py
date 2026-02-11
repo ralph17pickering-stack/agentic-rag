@@ -1,5 +1,7 @@
 import json
 from collections.abc import AsyncIterator, Callable, Awaitable
+from dataclasses import dataclass, field
+from typing import Any
 
 from langsmith import traceable
 from langsmith.wrappers import wrap_openai
@@ -13,49 +15,178 @@ client = wrap_openai(
     )
 )
 
-SYSTEM_PROMPT = "You are a helpful assistant."
-
-SYSTEM_PROMPT_WITH_RETRIEVAL = (
-    "You are a helpful assistant with access to the user's uploaded documents. "
-    "When the user asks a question that might be answered by their documents, "
-    "use the retrieve_documents tool to search for relevant information. "
-    "When citing information from documents, mention that it came from their uploaded documents."
-)
-
-TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "retrieve_documents",
-            "description": "Search the user's uploaded documents for information relevant to their query.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "The search query to find relevant document chunks.",
-                    },
-                    "date_from": {
-                        "type": "string",
-                        "description": "Optional start date filter (YYYY-MM-DD). Only return documents from this date onward.",
-                    },
-                    "date_to": {
-                        "type": "string",
-                        "description": "Optional end date filter (YYYY-MM-DD). Only return documents up to this date.",
-                    },
-                    "recency_weight": {
-                        "type": "number",
-                        "description": "Weight between 0 and 1 for recency bias. 0 = pure similarity, higher values favor newer documents.",
-                    },
-                },
-                "required": ["query"],
-            },
-        },
-    }
-]
-
 # Type alias for the retrieval callback
 RetrieveFn = Callable[..., Awaitable[list[dict]]]
+
+SYSTEM_PROMPT = "You are a helpful assistant."
+
+SYSTEM_PROMPT_WITH_TOOLS = (
+    "You are a helpful assistant with access to tools.\n\n"
+    "Available capabilities:\n"
+    "1. **retrieve_documents** — Search the user's uploaded documents for relevant content. "
+    "Use this when the user asks about information that might be in their documents.\n"
+    "2. **query_documents_metadata** — Query structured metadata about the user's documents "
+    "(counts, file types, topics, dates, etc.). Use this for questions like 'how many documents do I have?', "
+    "'what topics are covered?', 'list my PDF files'.\n"
+    "3. **web_search** — Search the web for current information. Use this when the user asks about "
+    "topics not likely in their documents, or asks for up-to-date information, news, or general knowledge.\n\n"
+    "Choose the most appropriate tool for each query. You may use multiple tools if needed. "
+    "When citing information from documents, mention it came from their uploaded documents. "
+    "When citing web results, mention the source."
+)
+
+# --- Tool Definitions ---
+
+RETRIEVE_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "retrieve_documents",
+        "description": "Search the user's uploaded documents for information relevant to their query.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The search query to find relevant document chunks.",
+                },
+                "date_from": {
+                    "type": "string",
+                    "description": "Optional start date filter (YYYY-MM-DD).",
+                },
+                "date_to": {
+                    "type": "string",
+                    "description": "Optional end date filter (YYYY-MM-DD).",
+                },
+                "recency_weight": {
+                    "type": "number",
+                    "description": "Weight 0-1 for recency bias. 0 = pure similarity.",
+                },
+            },
+            "required": ["query"],
+        },
+    },
+}
+
+SQL_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "query_documents_metadata",
+        "description": (
+            "Query structured metadata about the user's documents using natural language. "
+            "Use for questions about document counts, file types, topics, dates, sizes, etc."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "question": {
+                    "type": "string",
+                    "description": "The natural language question about document metadata.",
+                },
+            },
+            "required": ["question"],
+        },
+    },
+}
+
+WEB_SEARCH_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "web_search",
+        "description": (
+            "Search the web for current information, news, or general knowledge. "
+            "Use when the answer is unlikely to be in the user's documents."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The search query.",
+                },
+            },
+            "required": ["query"],
+        },
+    },
+}
+
+
+def get_tools(has_documents: bool) -> list[dict]:
+    tools = []
+    if has_documents:
+        tools.append(RETRIEVE_TOOL)
+    if settings.sql_tool_enabled and has_documents:
+        tools.append(SQL_TOOL)
+    if settings.web_search_enabled and settings.perplexity_api_key:
+        tools.append(WEB_SEARCH_TOOL)
+    return tools
+
+
+# --- ToolContext ---
+
+@dataclass
+class ToolContext:
+    retrieve_fn: RetrieveFn | None = None
+    user_token: str = ""
+    has_documents: bool = False
+
+
+# --- ToolEvent (non-token events yielded from stream) ---
+
+@dataclass
+class ToolEvent:
+    tool_name: str
+    data: Any
+
+
+# --- Helpers ---
+
+def _format_chunks(chunks: list[dict]) -> str:
+    if not chunks:
+        return "No relevant documents found."
+    parts = []
+    for i, c in enumerate(chunks, 1):
+        header = f"[Chunk {i}]"
+        if c.get("doc_title"):
+            header += f" (from: {c['doc_title']})"
+        if c.get("doc_date"):
+            header += f" [date: {c['doc_date']}]"
+        if c.get("doc_topics"):
+            header += f" [topics: {', '.join(c['doc_topics'])}]"
+        score = c.get("rerank_score") or c.get("rrf_score") or c.get("similarity", 0)
+        header += f" (score: {score:.2f})"
+        parts.append(f"{header}\n{c['content']}")
+    return "\n\n".join(parts)
+
+
+async def _execute_tool(tool_name: str, args: dict, ctx: ToolContext) -> str | dict:
+    if tool_name == "retrieve_documents" and ctx.retrieve_fn:
+        query = args.get("query", "")
+        kwargs = {}
+        if "date_from" in args:
+            kwargs["date_from"] = args["date_from"]
+        if "date_to" in args:
+            kwargs["date_to"] = args["date_to"]
+        if "recency_weight" in args:
+            kwargs["recency_weight"] = float(args["recency_weight"])
+        chunks = await ctx.retrieve_fn(query, **kwargs)
+        return _format_chunks(chunks)
+
+    elif tool_name == "query_documents_metadata":
+        from app.services.sql_tool import execute_metadata_query
+        question = args.get("question", "")
+        return await execute_metadata_query(question, ctx.user_token)
+
+    elif tool_name == "web_search":
+        from app.services.web_search import search_web
+        query = args.get("query", "")
+        return await search_web(query)
+
+    return f"Unknown tool: {tool_name}"
+
+
+# --- Main streaming function ---
+
+MAX_TOOL_ROUNDS = 3
 
 
 @traceable(name="chat_completion", run_type="llm")
@@ -63,9 +194,10 @@ async def stream_chat_completion(
     messages: list[dict],
     thread_id: str = "",
     user_id: str = "",
-    retrieve_fn: RetrieveFn | None = None,
-) -> AsyncIterator[str]:
-    system_prompt = SYSTEM_PROMPT_WITH_RETRIEVAL if retrieve_fn else SYSTEM_PROMPT
+    tool_ctx: ToolContext | None = None,
+) -> AsyncIterator[str | ToolEvent]:
+    tools = get_tools(tool_ctx.has_documents) if tool_ctx else []
+    system_prompt = SYSTEM_PROMPT_WITH_TOOLS if tools else SYSTEM_PROMPT
     full_messages = [{"role": "system", "content": system_prompt}] + messages
 
     metadata = {
@@ -74,8 +206,8 @@ async def stream_chat_completion(
         "message_count": len(messages),
     }
 
-    if retrieve_fn is None:
-        # No documents — stream directly, no tools
+    if not tools:
+        # No tools — stream directly
         response = await client.chat.completions.create(
             model=settings.llm_model,
             messages=full_messages,
@@ -87,72 +219,54 @@ async def stream_chat_completion(
                 yield chunk.choices[0].delta.content
         return
 
-    # Has documents — non-streaming first call with tools
-    first_response = await client.chat.completions.create(
-        model=settings.llm_model,
-        messages=full_messages,
-        tools=TOOLS,
-        langsmith_extra={"metadata": {**metadata, "phase": "tool_check"}},
-    )
-    choice = first_response.choices[0]
-
-    if choice.finish_reason == "tool_calls" and choice.message.tool_calls:
-        # LLM wants to call retrieve_documents
-        tool_call = choice.message.tool_calls[0]
-        args = json.loads(tool_call.function.arguments)
-        query = args.get("query", messages[-1]["content"] if messages else "")
-
-        # Extract optional retrieval params
-        retrieve_kwargs = {}
-        if "date_from" in args:
-            retrieve_kwargs["date_from"] = args["date_from"]
-        if "date_to" in args:
-            retrieve_kwargs["date_to"] = args["date_to"]
-        if "recency_weight" in args:
-            retrieve_kwargs["recency_weight"] = float(args["recency_weight"])
-
-        # Execute retrieval
-        chunks = await retrieve_fn(query, **retrieve_kwargs)
-
-        # Build tool result with metadata
-        if chunks:
-            context_parts = []
-            for i, c in enumerate(chunks, 1):
-                header = f"[Chunk {i}]"
-                if c.get("doc_title"):
-                    header += f" (from: {c['doc_title']})"
-                if c.get("doc_date"):
-                    header += f" [date: {c['doc_date']}]"
-                if c.get("doc_topics"):
-                    header += f" [topics: {', '.join(c['doc_topics'])}]"
-                score = c.get("rerank_score") or c.get("rrf_score") or c.get("similarity", 0)
-                header += f" (score: {score:.2f})"
-                context_parts.append(f"{header}\n{c['content']}")
-            tool_result = "\n\n".join(context_parts)
-        else:
-            tool_result = "No relevant documents found."
-
-        # Append assistant message with tool call + tool result
-        full_messages.append(choice.message.model_dump())
-        full_messages.append(
-            {
-                "role": "tool",
-                "tool_call_id": tool_call.id,
-                "content": tool_result,
-            }
-        )
-
-        # Streaming second call with context
+    # Multi-round tool loop
+    for round_num in range(MAX_TOOL_ROUNDS):
         response = await client.chat.completions.create(
             model=settings.llm_model,
             messages=full_messages,
-            stream=True,
-            langsmith_extra={"metadata": {**metadata, "phase": "final_response"}},
+            tools=tools,
+            langsmith_extra={"metadata": {**metadata, "phase": f"tool_check_{round_num}"}},
         )
-        async for chunk in response:
-            if chunk.choices and chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
-    else:
-        # No tool call — yield content from non-streaming response
-        if choice.message.content:
-            yield choice.message.content
+        choice = response.choices[0]
+
+        if choice.finish_reason != "tool_calls" or not choice.message.tool_calls:
+            # No tool call — yield content and done
+            if choice.message.content:
+                yield choice.message.content
+            return
+
+        # Process all tool calls in this response
+        full_messages.append(choice.message.model_dump())
+
+        for tool_call in choice.message.tool_calls:
+            name = tool_call.function.name
+            args = json.loads(tool_call.function.arguments)
+            result = await _execute_tool(name, args, tool_ctx)
+
+            # For web_search, yield a ToolEvent with structured results, then use answer text as tool result
+            if name == "web_search" and isinstance(result, dict):
+                yield ToolEvent(tool_name="web_search", data=result)
+                tool_result_str = result.get("answer", "")
+            elif isinstance(result, dict):
+                tool_result_str = json.dumps(result, default=str)
+            else:
+                tool_result_str = result
+
+            full_messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": tool_result_str,
+                }
+            )
+
+    # After all tool rounds, stream the final response
+    final_response = await client.chat.completions.create(
+        model=settings.llm_model,
+        messages=full_messages,
+        stream=True,
+        langsmith_extra={"metadata": {**metadata, "phase": "final_response"}},
+    )
+    async for chunk in final_response:
+        if chunk.choices and chunk.choices[0].delta.content:
+            yield chunk.choices[0].delta.content

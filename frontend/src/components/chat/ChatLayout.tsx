@@ -1,9 +1,10 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useThreads } from "@/hooks/useThreads"
 import { useChat } from "@/hooks/useChat"
 import { ThreadSidebar } from "./ThreadSidebar"
 import { MessageArea } from "./MessageArea"
 import { MessageInput } from "./MessageInput"
+import { WebResultsSidebar } from "./WebResultsSidebar"
 
 export function ChatLayout() {
   const {
@@ -23,7 +24,17 @@ export function ChatLayout() {
     fetchMessages,
     sendMessage,
     setMessages,
+    webResults,
   } = useChat(activeThreadId, updateThreadTitle)
+
+  const [sidebarDismissed, setSidebarDismissed] = useState(false)
+
+  // Reset dismissed state when new web results arrive
+  useEffect(() => {
+    if (webResults.length > 0) {
+      setSidebarDismissed(false)
+    }
+  }, [webResults])
 
   useEffect(() => {
     fetchThreads()
@@ -39,16 +50,16 @@ export function ChatLayout() {
 
   const handleSend = async (content: string) => {
     if (!activeThreadId) {
-      // Auto-create thread if none selected
       const thread = await createThread()
       if (thread) {
-        // Small delay to ensure state update, then send
         setTimeout(() => sendMessage(content), 50)
       }
       return
     }
     sendMessage(content)
   }
+
+  const showSidebar = webResults.length > 0 && !sidebarDismissed
 
   return (
     <div className="flex h-[calc(100vh-3.5rem)]">
@@ -59,7 +70,7 @@ export function ChatLayout() {
         onCreate={createThread}
         onDelete={deleteThread}
       />
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <MessageArea
           messages={messages}
           streamingContent={streamingContent}
@@ -67,6 +78,12 @@ export function ChatLayout() {
         />
         <MessageInput onSend={handleSend} disabled={isStreaming} />
       </div>
+      {showSidebar && (
+        <WebResultsSidebar
+          results={webResults}
+          onClose={() => setSidebarDismissed(true)}
+        />
+      )}
     </div>
   )
 }

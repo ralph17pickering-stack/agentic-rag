@@ -74,7 +74,15 @@ Track your progress through the masterclass. Update this file as you complete mo
 - [x] Score display: prefer rerank_score > rrf_score > similarity in chunk headers
 
 ### Module 7: Additional Tools
-- [ ] Not started
+- [x] Database migration: query_document_metadata RPC (read-only SQL execution with SECURITY INVOKER)
+- [x] Config: perplexity_api_key, perplexity_model, web_search_enabled, sql_tool_enabled
+- [x] Text-to-SQL service: generate_sql + execute_metadata_query (LLM→SQL→RPC)
+- [x] Web search service: Perplexity sonar API wrapper with citation parsing
+- [x] LLM refactor: ToolContext, ToolEvent, multi-tool definitions, generalized dispatch, multi-round loop
+- [x] Chat router: ToolContext construction, SSE web_results events
+- [x] URL ingestion endpoint: POST /api/documents/from-url (fetch→store→ingest)
+- [x] Frontend: WebResult type, web_results SSE handling in useChat
+- [x] Frontend: WebResultsSidebar with Save to KB, integrated into ChatLayout
 
 ### Module 8: Sub-Agents
 - [ ] Not started

@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sse_starlette.sse import EventSourceResponse
 from app.dependencies import get_current_user
 from app.services.supabase import get_supabase_client
-from app.services.llm import stream_chat_completion, client
+from app.services.llm import stream_chat_completion, client, ToolContext, ToolEvent
 from app.services.retrieval import retrieve_chunks
 from app.models.messages import MessageCreate, MessageResponse
 from app.config import settings
@@ -52,7 +52,8 @@ async def chat(
         {"role": m["role"], "content": m["content"]} for m in result.data
     ]
 
-    # Check if user has any ready documents — if so, enable retrieval
+    # Build ToolContext
+    has_documents = False
     retrieve_fn = None
     doc_check = (
         sb.table("documents")
@@ -63,16 +64,31 @@ async def chat(
         .execute()
     )
     if doc_check.count and doc_check.count > 0:
+        has_documents = True
         user_token = user["token"]
 
         async def retrieve_fn(query: str, **kwargs) -> list[dict]:
             return await retrieve_chunks(query, user_token, **kwargs)
 
+    tool_ctx = ToolContext(
+        retrieve_fn=retrieve_fn,
+        user_token=user["token"],
+        has_documents=has_documents,
+    )
+
     async def event_generator():
         full_content = ""
-        async for token in stream_chat_completion(messages_for_llm, thread_id=thread_id, user_id=user["id"], retrieve_fn=retrieve_fn):
-            full_content += token
-            yield {"data": json.dumps({"token": token})}
+        async for event in stream_chat_completion(
+            messages_for_llm,
+            thread_id=thread_id,
+            user_id=user["id"],
+            tool_ctx=tool_ctx,
+        ):
+            if isinstance(event, str):
+                full_content += event
+                yield {"data": json.dumps({"token": event})}
+            elif isinstance(event, ToolEvent) and event.tool_name == "web_search":
+                yield {"data": json.dumps({"web_results": event.data.get("results", [])})}
 
         # Save assistant message
         saved = (

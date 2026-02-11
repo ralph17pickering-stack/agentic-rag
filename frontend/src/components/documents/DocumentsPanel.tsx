@@ -45,8 +45,8 @@ export function DocumentsPanel({
       setError(null)
       setInfo(null)
       const ext = file.name.split(".").pop()?.toLowerCase()
-      if (!ext || !["txt", "md"].includes(ext)) {
-        setError("Only .txt and .md files are supported")
+      if (!ext || !["txt", "md", "pdf", "docx", "csv", "html"].includes(ext)) {
+        setError("Only .txt, .md, .pdf, .docx, .csv, and .html files are supported")
         return
       }
       try {
@@ -91,7 +91,7 @@ export function DocumentsPanel({
         <input
           ref={fileInputRef}
           type="file"
-          accept=".txt,.md"
+          accept=".txt,.md,.pdf,.docx,.csv,.html"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0]
@@ -102,7 +102,7 @@ export function DocumentsPanel({
         <p className="text-muted-foreground">
           {uploading
             ? "Uploading..."
-            : "Drop a .txt or .md file here, or click to browse"}
+            : "Drop a file here, or click to browse"}
         </p>
       </div>
 

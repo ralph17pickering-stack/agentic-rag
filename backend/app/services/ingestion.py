@@ -2,6 +2,7 @@ import logging
 from langsmith import traceable
 from app.services.supabase import get_service_supabase_client
 from app.services.chunker import chunk_text
+from app.services.extraction import extract_text
 from app.services.embeddings import generate_embeddings
 from app.services.metadata import extract_metadata
 
@@ -12,7 +13,7 @@ CHUNK_INSERT_BATCH_SIZE = 50
 
 
 @traceable(name="ingest_document")
-async def ingest_document(document_id: str, user_id: str, storage_path: str):
+async def ingest_document(document_id: str, user_id: str, storage_path: str, file_type: str = "txt"):
     """Background task: download file, chunk, embed, and store vectors."""
     sb = get_service_supabase_client()
 
@@ -30,7 +31,7 @@ async def ingest_document(document_id: str, user_id: str, storage_path: str):
 
         # Download file from Supabase Storage
         file_bytes = sb.storage.from_("documents").download(storage_path)
-        text = file_bytes.decode("utf-8")
+        text = extract_text(file_bytes, file_type)
 
         if not text.strip():
             sb.table("documents").update(

@@ -10,7 +10,15 @@ from app.models.documents import DocumentResponse
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
-ALLOWED_EXTENSIONS = {"txt", "md"}
+ALLOWED_EXTENSIONS = {"txt", "md", "pdf", "docx", "csv", "html"}
+CONTENT_TYPES = {
+    "txt": "text/plain",
+    "md": "text/markdown",
+    "pdf": "application/pdf",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "csv": "text/csv",
+    "html": "text/html",
+}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
@@ -82,7 +90,7 @@ async def upload_document(
     # Upload to Supabase Storage
     storage_path = f"{user['id']}/{uuid.uuid4().hex}_{file.filename}"
     sb.storage.from_("documents").upload(
-        storage_path, content, {"content-type": file.content_type or "text/plain"}
+        storage_path, content, {"content-type": CONTENT_TYPES.get(ext, "application/octet-stream")}
     )
 
     # Create document record
@@ -105,7 +113,7 @@ async def upload_document(
 
     # Kick off background ingestion
     asyncio.create_task(
-        ingest_document(document["id"], user["id"], storage_path)
+        ingest_document(document["id"], user["id"], storage_path, ext)
     )
 
     return JSONResponse(content=document, status_code=201)

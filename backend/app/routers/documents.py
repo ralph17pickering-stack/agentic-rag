@@ -1,6 +1,6 @@
 import asyncio
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, status
 from fastapi.responses import JSONResponse
 from app.dependencies import get_current_user
 from app.services.supabase import get_supabase_client
@@ -36,9 +36,15 @@ async def list_documents(user: dict = Depends(get_current_user)):
 
 @router.post("")
 async def upload_document(
-    file: UploadFile = File(...),
+    request: Request,
     user: dict = Depends(get_current_user),
 ):
+    # Parse multipart with 10MB part size limit (Starlette defaults to 1MB)
+    form = await request.form(max_part_size=MAX_FILE_SIZE)
+    file = form.get("file")
+    if not isinstance(file, UploadFile):
+        raise HTTPException(status_code=400, detail="No file provided")
+
     # Validate file type
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")

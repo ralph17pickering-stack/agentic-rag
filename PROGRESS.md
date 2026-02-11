@@ -67,7 +67,11 @@ Track your progress through the masterclass. Update this file as you complete mo
 - [x] Frontend: accept new formats in validation, file picker, and drop zone text
 
 ### Module 6: Hybrid Search & Reranking
-- [ ] Not started
+- [x] Database migration: tsvector column, GIN index, auto-populate trigger, keyword search RPC
+- [x] Config settings: search_mode, rrf_k, rerank_enabled, rerank_top_n, retrieval_candidates
+- [x] Reranking service: LLM-based relevance scoring with Pydantic validation, graceful fallback
+- [x] Hybrid retrieval pipeline: semantic + keyword in parallel, RRF merge, optional rerank
+- [x] Score display: prefer rerank_score > rrf_score > similarity in chunk headers
 
 ### Module 7: Additional Tools
 - [ ] Not started

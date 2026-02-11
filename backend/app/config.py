@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     chunk_size: int = 500
     chunk_overlap: int = 50
 
+    search_mode: str = "hybrid"        # "semantic", "keyword", "hybrid"
+    rrf_k: int = 60                    # RRF constant
+    rerank_enabled: bool = True
+    rerank_top_n: int = 5
+    retrieval_candidates: int = 20     # per-method fetch count before merge
+
     langchain_tracing_v2: bool = True
     langchain_api_key: str = ""
     langchain_project: str = "agentic-rag"

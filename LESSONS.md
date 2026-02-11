@@ -109,3 +109,39 @@ This avoids the complexity of parsing tool calls from a streaming response. The 
 ### FormData Uploads: Don't Set Content-Type
 
 When uploading files via `FormData`, do **not** set `Content-Type: application/json` (the default in `apiFetch`). The browser must auto-set the multipart boundary. Use `fetch` directly instead of `apiFetch` for file uploads.
+
+---
+
+## Session: Module 5 — Multi-Format Support
+
+### Extraction as a Dispatcher Pattern
+
+Adding new file formats is cleanest as a single `extract_text(file_bytes, file_type) -> str` dispatcher that normalizes any format to plain text before the existing chunking pipeline. This keeps the ingestion service format-agnostic — it only ever sees plain text.
+
+### Content-Type Matters for Supabase Storage
+
+When uploading binary formats (PDF, DOCX) to Supabase Storage, the content-type must match the actual file format. The original code hardcoded `text/plain`, which works for txt/md but causes issues when downloading binary files. Use a `CONTENT_TYPES` mapping keyed by extension.
+
+### DB CHECK Constraints Need Explicit Widening
+
+Adding new allowed values to an existing `CHECK` constraint requires dropping and recreating it — Postgres doesn't support `ALTER CONSTRAINT` to add values. Use `DROP CONSTRAINT IF EXISTS` + `ADD CONSTRAINT` in the migration for safety.
+
+---
+
+## Session: Module 6 — Hybrid Search & Reranking
+
+### Reciprocal Rank Fusion (RRF) is Simple and Effective
+
+RRF merges multiple ranked lists without needing normalized scores. Formula: `score = sum(1 / (k + rank + 1))` where `k=60` is standard. Chunks appearing in multiple lists naturally get higher scores. No tuning needed beyond the `k` constant.
+
+### Postgres Full-Text Search Auto-Populates via Trigger
+
+Adding a `tsvector` column with a `BEFORE INSERT OR UPDATE` trigger means new chunks automatically get their search vector populated during ingestion — no ingestion code changes needed. Existing rows are backfilled in the migration.
+
+### LLM Reranking Needs Graceful Fallback
+
+LLM-based reranking can fail (bad JSON, timeout, etc.). Always fall back to returning the original order truncated to `top_n` rather than failing the entire retrieval pipeline. Log the error for debugging.
+
+### Keep Retrieval Signature Stable
+
+The hybrid pipeline changes internals but keeps `retrieve_chunks()` signature identical. This means zero changes to the chat router, LLM tool definition, or frontend — the pipeline is an implementation detail behind a stable interface.

@@ -125,7 +125,8 @@ async def stream_chat_completion(
                     header += f" [date: {c['doc_date']}]"
                 if c.get("doc_topics"):
                     header += f" [topics: {', '.join(c['doc_topics'])}]"
-                header += f" (score: {c.get('similarity', 0):.2f})"
+                score = c.get("rerank_score") or c.get("rrf_score") or c.get("similarity", 0)
+                header += f" (score: {score:.2f})"
                 context_parts.append(f"{header}\n{c['content']}")
             tool_result = "\n\n".join(context_parts)
         else:

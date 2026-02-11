@@ -92,10 +92,11 @@ else
 fi
 
 # Start uvicorn server in background
-uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload &
+uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload > /tmp/agentic-rag-backend.log 2>&1 &
 BACKEND_PID=$!
+disown $BACKEND_PID
 
-echo "Backend API started with PID: $BACKEND_PID"
+echo "Backend API started with PID: $BACKEND_PID (log: /tmp/agentic-rag-backend.log)"
 
 # Start Frontend
 echo "Starting Frontend..."
@@ -109,29 +110,26 @@ fi
 npm install
 
 # Start frontend in background
-npm run dev &
+npm run dev > /tmp/agentic-rag-frontend.log 2>&1 &
 FRONTEND_PID=$!
+disown $FRONTEND_PID
 
-echo "Frontend started with PID: $FRONTEND_PID"
+echo "Frontend started with PID: $FRONTEND_PID (log: /tmp/agentic-rag-frontend.log)"
 
 # Wait for services to be ready
 echo "Waiting for services to be ready..."
 wait_for_service "http://localhost:8001/health" "Backend API" 30
 wait_for_service "http://localhost:5173" "Frontend" 30
 
+echo ""
 echo "All services started successfully!"
-echo "Backend API: http://localhost:8001"
-echo "Frontend: http://localhost:5173"
-echo "Supabase: http://localhost:8000"
-
-# Keep the script running to maintain service processes
-wait
-
-# Cleanup function (uncomment if needed)
-# cleanup() {
-#     echo "Stopping services..."
-#     kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
-#     docker stop supabase-local 2>/dev/null || true
-#     docker stop llm-service 2>/dev/null || true
-# }
-# trap cleanup EXIT
+echo "================================"
+echo "Backend API: http://localhost:8001  (PID: $BACKEND_PID)"
+echo "Frontend:    http://localhost:5173  (PID: $FRONTEND_PID)"
+echo "Supabase:    http://localhost:8000"
+echo ""
+echo "Logs:"
+echo "  Backend:  tail -f /tmp/agentic-rag-backend.log"
+echo "  Frontend: tail -f /tmp/agentic-rag-frontend.log"
+echo ""
+echo "To stop: ./shutdown.sh"

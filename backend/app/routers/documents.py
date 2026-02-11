@@ -1,9 +1,10 @@
 import asyncio
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, status
+from fastapi import APIRouter, Depends, HTTPException, Request, File, status
+from starlette.datastructures import UploadFile
 from fastapi.responses import JSONResponse
 from app.dependencies import get_current_user
-from app.services.supabase import get_supabase_client
+from app.services.supabase import get_supabase_client, get_service_supabase_client
 from app.services.ingestion import ingest_document
 from app.services.hashing import sha256_hex
 from app.models.documents import DocumentResponse
@@ -86,16 +87,17 @@ async def upload_document(
         .eq("filename", file.filename)
         .execute()
     )
+    service_sb = get_service_supabase_client()
     for old_doc in same_name.data:
         try:
-            sb.storage.from_("documents").remove([old_doc["storage_path"]])
+            service_sb.storage.from_("documents").remove([old_doc["storage_path"]])
         except Exception:
             pass
         sb.table("documents").delete().eq("id", old_doc["id"]).execute()
 
-    # Upload to Supabase Storage
+    # Upload to Supabase Storage (service role bypasses storage RLS)
     storage_path = f"{user['id']}/{uuid.uuid4().hex}_{file.filename}"
-    sb.storage.from_("documents").upload(
+    service_sb.storage.from_("documents").upload(
         storage_path, content, {"content-type": CONTENT_TYPES.get(ext, "application/octet-stream")}
     )
 
@@ -144,9 +146,10 @@ async def delete_document(
 
     document = result.data[0]
 
-    # Delete from storage (ignore errors if file already gone)
+    # Delete from storage (service role bypasses storage RLS)
     try:
-        sb.storage.from_("documents").remove([document["storage_path"]])
+        service_sb = get_service_supabase_client()
+        service_sb.storage.from_("documents").remove([document["storage_path"]])
     except Exception:
         pass
 

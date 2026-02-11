@@ -152,3 +152,46 @@ LLM-based reranking can fail (bad JSON, timeout, etc.). Always fall back to retu
 ### Keep Retrieval Signature Stable
 
 The hybrid pipeline changes internals but keeps `retrieve_chunks()` signature identical. This means zero changes to the chat router, LLM tool definition, or frontend — the pipeline is an implementation detail behind a stable interface.
+
+---
+
+## Session: Debugging Document Upload Failure
+
+### `docker exec` Without `-i` Silently Drops Stdin
+
+**Critical**: `docker exec supabase-db psql -U postgres -d postgres -f - < file.sql` does **not** work. Without the `-i` flag, `docker exec` does not forward stdin to the container. The host shell opens the file and redirects it, but Docker never passes it through. psql receives empty input, does nothing, and exits with code 0 — **no error, no output, no indication of failure**.
+
+**Correct command:**
+```bash
+docker exec -i supabase-db psql -U postgres -d postgres -f - < file.sql
+```
+
+This caused migrations 003–006 to appear applied when they never actually ran.
+
+### FastAPI UploadFile vs Starlette UploadFile (Version Mismatch)
+
+In FastAPI 0.128.6 + Starlette 0.52.1, `fastapi.UploadFile` and `starlette.datastructures.UploadFile` are **different classes**. When using `request.form()` (a Starlette method) to parse multipart uploads, the returned file parts are Starlette `UploadFile` instances. An `isinstance(file, fastapi.UploadFile)` check will always return `False`.
+
+**Fix:** Import `UploadFile` from `starlette.datastructures` when using `request.form()` directly.
+
+### CORS Errors Often Mask Backend 500s
+
+When a FastAPI endpoint raises an unhandled exception, the 500 response may lack CORS headers (the error propagates before the CORS middleware can add them). The browser then reports "CORS Missing Allow Origin" instead of showing the actual server error. **Always check backend logs** (`/tmp/agentic-rag-backend.log`) when you see a CORS error — the real cause is usually an unhandled exception.
+
+### Supabase Storage Has Default-Deny RLS
+
+The `storage.objects` table has RLS enabled with no default policies. Uploading via a user-scoped Supabase client (anon key + JWT) will get a 403 "new row violates row-level security policy" unless explicit policies exist.
+
+**Fix:** Use the service role client (`get_service_supabase_client()`) for storage operations. The backend already authenticates the user via `get_current_user`, so bypassing storage RLS is safe. Keep the user-scoped client for `documents`/`chunks` table queries where RLS enforces data isolation.
+
+### Verify Migrations Actually Applied
+
+After running a migration, always verify the schema changed:
+```bash
+docker exec supabase-db psql -U postgres -d postgres -c "\d tablename"
+```
+Don't trust the exit code or lack of error output — especially with piped commands through Docker.
+
+### Supabase SQL Editor as Migration Fallback
+
+When `docker exec` is problematic (permissions, missing `-i` flag, credential issues), the Supabase Studio SQL editor (accessible via the web UI) is a reliable alternative for running migrations manually.

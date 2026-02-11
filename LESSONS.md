@@ -49,6 +49,13 @@ This is Supavisor rejecting the connection because it expects tenant-qualified u
 | `/home/ralph/dev/supabase-project/supbase-secrets.txt` | Generated secrets reference |
 | `/home/ralph/dev/agentic-rag/supabase/migrations/` | App-specific SQL migrations |
 
+### Don't Run Docker/Infrastructure Commands — Print Them Instead
+
+Bash permission mode blocks commands that touch Docker, `docker compose`, or other infrastructure outside the project directory. Instead of attempting to run these commands (which will be denied), **print the command for the user to run manually**. This applies to:
+- `docker compose restart/up/down`
+- `docker exec ...`
+- Any command operating on `/home/ralph/dev/supabase-project/`
+
 ### Applying Migrations Without Supabase CLI
 
 Since the project doesn't use `supabase init` / `config.toml`, migrations are applied manually. The most reliable method is `docker exec` piping the SQL file directly to psql inside the container. This avoids all pooler/networking complications.

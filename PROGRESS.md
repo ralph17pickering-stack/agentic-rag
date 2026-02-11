@@ -59,7 +59,12 @@ Track your progress through the masterclass. Update this file as you complete mo
 - [x] Frontend: TS types + DocumentsPanel displays title, summary, topics, date
 
 ### Module 5: Multi-Format Support
-- [ ] Not started
+- [x] Database migration: widen file_type CHECK constraint (pdf, docx, csv, html)
+- [x] Dependencies: pypdf, python-docx, beautifulsoup4
+- [x] Text extraction service (format dispatcher: txt, md, pdf, docx, csv, html)
+- [x] Ingestion pipeline: use extract_text() with file_type param
+- [x] Backend router: expanded allowed extensions, content-type mapping, pass file_type to ingestion
+- [x] Frontend: accept new formats in validation, file picker, and drop zone text
 
 ### Module 6: Hybrid Search & Reranking
 - [ ] Not started

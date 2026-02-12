@@ -84,5 +84,36 @@ Track your progress through the masterclass. Update this file as you complete mo
 - [x] Frontend: WebResult type, web_results SSE handling in useChat
 - [x] Frontend: WebResultsSidebar with Save to KB, integrated into ChatLayout
 
-### Module 8: Sub-Agents
-- [ ] Not started
+### UX Redesign (UK-Centric)
+- [x] Theme system: next-themes with system/light/dark cycle, toggle in header
+- [x] Responsive breakpoint hook (mobile <768 / tablet <1024 / desktop)
+- [x] Panel state hook (left: collapsed/overlay/pinned, right: hidden/overlay, keyboard shortcuts)
+- [x] Left panel: icon rail (48px) + sliding overlay (280px) + pinnable on desktop
+- [x] Right panel: hidden by default, overlay (320px) with edge tab handle, slide transition
+- [x] Scrim overlay with fade transition for overlay panels
+- [x] Mobile layout: bottom tab bar (Chat/History/Results), full-screen tab views, badge dot
+- [x] Header: responsive (compact on mobile, hamburger menu), theme toggle
+- [x] CSS transitions on all panel and scrim state changes
+
+### Module 8: Sub-Agents (Deep Analysis)
+- [x] Config: sub_agents_enabled flag
+- [x] Sub-agent service: run_sub_agent with 5-round tool loop, text tool call parsing, @traceable, status callbacks
+- [x] LLM service: deep_analysis tool definition, system prompt, get_tools, _execute_tool with on_status, stream status events
+- [x] Chat router: SSE sub_agent_status events
+- [x] Frontend: deepAnalysisPhase + usedDeepAnalysis state in useChat, SSE handling
+- [x] Frontend: MessageArea phase text + violet "Deep Analysis" badge
+- [x] Frontend: ChatLayout wiring for both mobile and desktop
+
+### Improvements
+- [ ] File Metadata: Ability to edit metadata for imported files in the UI.
+- [ ] Make Metadata category displayed below files clickable to filter by category.
+- [ ] Add a "Clear Chat" button to the chat UI.
+- [ ] Add a "-" button next to each chat to allow selective deletion of chat threads.
+- [ ] Enable management of TLS certificates and public hostname for the UI.
+- [ ] GraphRAG functionality.
+- [ ] Save the retrieved web searches with the chats so that clicking on a previous chat also shows the links on the right-hand side.
+- [ ] Implement RAG-Fusion, which retrieves information using multiple queries and combines results to improve overall search coverage and accuracy
+- [ ] Documents in the RAG should be viewable in some format. It does not need to be the original file, but should be a readable version of the file.
+- [ ] Web searches imported into the RAG should similarly be readable and should include the original link.
+- [ ] When chat uses file information from the RAG in the response, it should be linked in the right-hand panel to the source document.
+

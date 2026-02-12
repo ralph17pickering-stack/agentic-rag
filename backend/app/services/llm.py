@@ -1,4 +1,5 @@
 import json
+import re
 from collections.abc import AsyncIterator, Callable, Awaitable
 from dataclasses import dataclass, field
 from typing import Any
@@ -29,7 +30,10 @@ SYSTEM_PROMPT_WITH_TOOLS = (
     "(counts, file types, topics, dates, etc.). Use this for questions like 'how many documents do I have?', "
     "'what topics are covered?', 'list my PDF files'.\n"
     "3. **web_search** — Search the web for current information. Use this when the user asks about "
-    "topics not likely in their documents, or asks for up-to-date information, news, or general knowledge.\n\n"
+    "topics not likely in their documents, or asks for up-to-date information, news, or general knowledge.\n"
+    "4. **deep_analysis** — Perform thorough, multi-pass analysis of the user's documents. "
+    "Use this when asked for comprehensive analysis, detailed summaries, or deep investigation "
+    "across documents. Prefer this over retrieve_documents when thoroughness is important.\n\n"
     "Choose the most appropriate tool for each query. You may use multiple tools if needed. "
     "When citing information from documents, mention it came from their uploaded documents. "
     "When citing web results, mention the source."
@@ -109,6 +113,34 @@ WEB_SEARCH_TOOL = {
     },
 }
 
+DEEP_ANALYSIS_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "deep_analysis",
+        "description": (
+            "Perform a thorough, multi-pass analysis of the user's documents. "
+            "Use when the user asks for comprehensive analysis, detailed summaries, "
+            "or deep investigation across their documents. This does multiple rounds "
+            "of retrieval with different queries to ensure thorough coverage."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The analysis query describing what to investigate.",
+                },
+                "focus_areas": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Optional list of specific areas or topics to focus on.",
+                },
+            },
+            "required": ["query"],
+        },
+    },
+}
+
 
 def get_tools(has_documents: bool) -> list[dict]:
     tools = []
@@ -118,6 +150,8 @@ def get_tools(has_documents: bool) -> list[dict]:
         tools.append(SQL_TOOL)
     if settings.web_search_enabled and settings.perplexity_api_key:
         tools.append(WEB_SEARCH_TOOL)
+    if settings.sub_agents_enabled and has_documents:
+        tools.append(DEEP_ANALYSIS_TOOL)
     return tools
 
 
@@ -158,7 +192,37 @@ def _format_chunks(chunks: list[dict]) -> str:
     return "\n\n".join(parts)
 
 
-async def _execute_tool(tool_name: str, args: dict, ctx: ToolContext) -> str | dict:
+def _parse_text_tool_calls(content: str) -> list[dict] | None:
+    """Parse tool calls formatted as text by local LLMs.
+
+    Detects patterns like:
+        <function=web_search>
+        <parameter=query>some query</parameter>
+        </function>
+    """
+    pattern = r"<function=(\w+)>(.*?)</function>"
+    matches = re.findall(pattern, content, re.DOTALL)
+    if not matches:
+        return None
+
+    tool_calls = []
+    for func_name, body in matches:
+        params = {}
+        param_pattern = r"<parameter=(\w+)>(.*?)</parameter>"
+        param_matches = re.findall(param_pattern, body, re.DOTALL)
+        for param_name, param_value in param_matches:
+            params[param_name] = param_value.strip()
+        tool_calls.append({"name": func_name, "arguments": params})
+
+    return tool_calls if tool_calls else None
+
+
+async def _execute_tool(
+    tool_name: str,
+    args: dict,
+    ctx: ToolContext,
+    on_status: Callable[[str], Awaitable[None]] | None = None,
+) -> str | dict:
     if tool_name == "retrieve_documents" and ctx.retrieve_fn:
         query = args.get("query", "")
         kwargs = {}
@@ -180,6 +244,18 @@ async def _execute_tool(tool_name: str, args: dict, ctx: ToolContext) -> str | d
         from app.services.web_search import search_web
         query = args.get("query", "")
         return await search_web(query)
+
+    elif tool_name == "deep_analysis" and ctx.retrieve_fn:
+        from app.services.sub_agent import run_sub_agent
+        query = args.get("query", "")
+        focus_areas = args.get("focus_areas")
+        return await run_sub_agent(
+            query=query,
+            retrieve_fn=ctx.retrieve_fn,
+            user_token=ctx.user_token,
+            focus_areas=focus_areas,
+            on_status=on_status,
+        )
 
     return f"Unknown tool: {tool_name}"
 
@@ -219,6 +295,13 @@ async def stream_chat_completion(
                 yield chunk.choices[0].delta.content
         return
 
+    # Status collector for sub-agent
+    status_events: list[ToolEvent] = []
+    used_deep_analysis = False
+
+    async def on_status(phase: str):
+        status_events.append(ToolEvent(tool_name="deep_analysis", data={"phase": phase}))
+
     # Multi-round tool loop
     for round_num in range(MAX_TOOL_ROUNDS):
         response = await client.chat.completions.create(
@@ -230,7 +313,33 @@ async def stream_chat_completion(
         choice = response.choices[0]
 
         if choice.finish_reason != "tool_calls" or not choice.message.tool_calls:
+            # Check for text-formatted tool calls from local LLMs
+            text_tool_calls = _parse_text_tool_calls(choice.message.content or "")
+            if text_tool_calls:
+                # Inject as assistant message so conversation stays coherent
+                full_messages.append({"role": "assistant", "content": choice.message.content})
+                for tc in text_tool_calls:
+                    if tc["name"] == "deep_analysis":
+                        used_deep_analysis = True
+                    status_events.clear()
+                    result = await _execute_tool(tc["name"], tc["arguments"], tool_ctx, on_status)
+                    for evt in status_events:
+                        yield evt
+                    status_events.clear()
+                    if tc["name"] == "web_search" and isinstance(result, dict):
+                        yield ToolEvent(tool_name="web_search", data=result)
+                        tool_result_str = result.get("answer", "")
+                    elif isinstance(result, dict):
+                        tool_result_str = json.dumps(result, default=str)
+                    else:
+                        tool_result_str = result
+                    full_messages.append({"role": "user", "content": f"[Tool result for {tc['name']}]: {tool_result_str}"})
+                # Continue loop to get final answer from LLM
+                continue
+
             # No tool call — yield content and done
+            if used_deep_analysis:
+                yield ToolEvent(tool_name="deep_analysis", data={"done": True})
             if choice.message.content:
                 yield choice.message.content
             return
@@ -241,7 +350,14 @@ async def stream_chat_completion(
         for tool_call in choice.message.tool_calls:
             name = tool_call.function.name
             args = json.loads(tool_call.function.arguments)
-            result = await _execute_tool(name, args, tool_ctx)
+
+            if name == "deep_analysis":
+                used_deep_analysis = True
+            status_events.clear()
+            result = await _execute_tool(name, args, tool_ctx, on_status)
+            for evt in status_events:
+                yield evt
+            status_events.clear()
 
             # For web_search, yield a ToolEvent with structured results, then use answer text as tool result
             if name == "web_search" and isinstance(result, dict):
@@ -259,6 +375,10 @@ async def stream_chat_completion(
                     "content": tool_result_str,
                 }
             )
+
+    # Signal deep analysis completion before final streaming
+    if used_deep_analysis:
+        yield ToolEvent(tool_name="deep_analysis", data={"done": True})
 
     # After all tool rounds, stream the final response
     final_response = await client.chat.completions.create(

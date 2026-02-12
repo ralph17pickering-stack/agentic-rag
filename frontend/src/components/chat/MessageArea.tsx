@@ -1,18 +1,22 @@
 import { useEffect, useRef } from "react"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import type { Message } from "@/types"
 
 interface MessageAreaProps {
   messages: Message[]
   streamingContent: string
   isStreaming: boolean
+  deepAnalysisPhase?: string | null
+  usedDeepAnalysis?: boolean
 }
 
-export function MessageArea({ messages, streamingContent, isStreaming }: MessageAreaProps) {
-  const bottomRef = useRef<HTMLDivElement>(null)
+export function MessageArea({ messages, streamingContent, isStreaming, deepAnalysisPhase, usedDeepAnalysis }: MessageAreaProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    const el = scrollRef.current
+    if (el) {
+      el.scrollTop = el.scrollHeight
+    }
   }, [messages, streamingContent])
 
   if (messages.length === 0 && !isStreaming) {
@@ -24,7 +28,7 @@ export function MessageArea({ messages, streamingContent, isStreaming }: Message
   }
 
   return (
-    <ScrollArea className="flex-1">
+    <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0">
       <div className="mx-auto max-w-3xl space-y-6 p-6">
         {messages.map(msg => (
           <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -42,6 +46,11 @@ export function MessageArea({ messages, streamingContent, isStreaming }: Message
         {isStreaming && streamingContent && (
           <div className="flex justify-start">
             <div className="max-w-[80%] rounded-lg bg-muted px-4 py-2">
+              {usedDeepAnalysis && (
+                <span className="mb-1 inline-block rounded bg-violet-600 px-1.5 py-0.5 text-xs font-medium text-white">
+                  Deep Analysis
+                </span>
+              )}
               <p className="whitespace-pre-wrap">{streamingContent}</p>
             </div>
           </div>
@@ -49,12 +58,11 @@ export function MessageArea({ messages, streamingContent, isStreaming }: Message
         {isStreaming && !streamingContent && (
           <div className="flex justify-start">
             <div className="rounded-lg bg-muted px-4 py-2">
-              <span className="animate-pulse">Thinking...</span>
+              <span className="animate-pulse">{deepAnalysisPhase || "Thinking..."}</span>
             </div>
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
-    </ScrollArea>
+    </div>
   )
 }

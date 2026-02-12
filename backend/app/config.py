@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     perplexity_model: str = "sonar"
     web_search_enabled: bool = True
     sql_tool_enabled: bool = True
+    sub_agents_enabled: bool = True
 
     langchain_tracing_v2: bool = True
     langchain_api_key: str = ""

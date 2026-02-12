@@ -89,6 +89,8 @@ async def chat(
                 yield {"data": json.dumps({"token": event})}
             elif isinstance(event, ToolEvent) and event.tool_name == "web_search":
                 yield {"data": json.dumps({"web_results": event.data.get("results", [])})}
+            elif isinstance(event, ToolEvent) and event.tool_name == "deep_analysis":
+                yield {"data": json.dumps({"sub_agent_status": event.data})}
 
         # Save assistant message
         saved = (

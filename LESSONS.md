@@ -223,3 +223,43 @@ URLs in sidebar cards will expand the card beyond its parent width. Use `overflo
 ### useCallback Stale Closure Pitfall
 
 Chaining `useCallback` hooks (e.g., `handleKeyDown` depends on `handleSubmit` which depends on `content`) can create stale closures where the inner callback captures an outdated state value. Using a ref (`contentRef.current = content`) avoids the dependency chain entirely.
+
+---
+
+## Session: UX Redesign — Panel System & Responsive Layout
+
+### CSS Transitions Require Persistent DOM Elements
+
+For CSS transitions on panels (slide in/out), the element must always be in the DOM — just transformed off-screen. Conditionally rendering with `{isOpen && <Panel />}` means mount/unmount with no transition. Instead, always render the panel and toggle `translate-x-0` vs `translate-x-full` (or `-translate-x-[292px]` for left panels). Same applies to the scrim overlay — always render it with `opacity-0 pointer-events-none` when inactive.
+
+### Overlay Panels Need `overflow-hidden` on Container
+
+When sliding panels are positioned absolute and translated off-screen, they can still cause horizontal scrollbars on the parent. Add `overflow-hidden` to the containing flex layout.
+
+### `next-themes` Setup in Tailwind v4
+
+`next-themes` works with Tailwind v4's `@custom-variant dark` when configured with `attribute="class"`. The CSS custom properties in `:root` and `.dark` selector work as-is. The `enableSystem` prop enables `prefers-color-scheme` detection. The package was already installed but just needed the `<ThemeProvider>` wrapper in App.tsx.
+
+### Panel State Management Pattern
+
+A dedicated `usePanelState` hook centralising left/right panel states, keyboard shortcuts, and breakpoint-aware constraints keeps the ChatLayout clean. The hook enforces rules like "no pinning on tablet" and "force-close panels on mobile" via effects reacting to breakpoint changes.
+
+---
+
+## Session: Module 8 — Sub-Agent (Deep Analysis)
+
+### Sub-Agents as Just Another Tool
+
+The simplest sub-agent architecture is "just another tool" in the existing tool-calling loop. The main LLM decides when to delegate (same as picking `web_search` vs `retrieve_documents`), and the sub-agent runs its own internal tool loop with a restricted tool set. No orchestration framework, no delegation policy engine — the LLM's judgment is the policy.
+
+### Status Callbacks via List Collection
+
+When a sub-agent runs inside `_execute_tool` (which is `await`ed sequentially), status updates can't be yielded directly from the generator. Instead, use a list that the sub-agent's `on_status` callback appends to, then yield all collected events after `_execute_tool` returns. This avoids asyncio.Queue complexity while keeping the streaming interface (`str | ToolEvent`) clean.
+
+### Allowlist Filtering for Sub-Agent Tool Calls
+
+The sub-agent's text tool call parser filters against an explicit allowlist (`retrieve_documents`, `query_documents_metadata`). This prevents the local LLM from attempting to call `web_search` or `deep_analysis` itself (which would cause recursion or unauthorized API calls). The native tool call path also checks the allowlist before execution.
+
+### Duplicating Tool Call Parsing is Acceptable
+
+The sub-agent duplicates `_parse_text_tool_calls` from `llm.py` rather than sharing it. The sub-agent version adds allowlist filtering and operates in a different context (isolated tool loop vs main chat loop). Extracting a shared utility would couple the two modules and add complexity for minimal DRY benefit — especially since the parsing logic is ~15 lines.

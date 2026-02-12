@@ -11,6 +11,8 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
   const [streamingContent, setStreamingContent] = useState("")
   const [loading, setLoading] = useState(false)
   const [webResults, setWebResults] = useState<WebResult[]>([])
+  const [deepAnalysisPhase, setDeepAnalysisPhase] = useState<string | null>(null)
+  const [usedDeepAnalysis, setUsedDeepAnalysis] = useState(false)
 
   const fetchMessages = useCallback(async (tid: string) => {
     setLoading(true)
@@ -25,13 +27,14 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
     }
   }, [])
 
-  const sendMessage = useCallback(async (content: string) => {
-    if (!threadId || isStreaming) return
+  const sendMessage = useCallback(async (content: string, overrideThreadId?: string) => {
+    const tid = overrideThreadId || threadId
+    if (!tid || isStreaming) return
 
     // Optimistically add user message
     const tempUserMsg: Message = {
       id: crypto.randomUUID(),
-      thread_id: threadId,
+      thread_id: tid,
       user_id: "",
       role: "user",
       content,
@@ -41,10 +44,12 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
     setIsStreaming(true)
     setStreamingContent("")
     setWebResults([])
+    setDeepAnalysisPhase(null)
+    setUsedDeepAnalysis(false)
 
     try {
       const { data: { session } } = await supabase.auth.getSession()
-      const response = await fetch(`${API_URL}/api/threads/${threadId}/chat`, {
+      const response = await fetch(`${API_URL}/api/threads/${tid}/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -81,13 +86,22 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
             if (data.web_results) {
               setWebResults(data.web_results)
             }
+            if (data.sub_agent_status) {
+              if (data.sub_agent_status.done) {
+                setDeepAnalysisPhase(null)
+                setUsedDeepAnalysis(true)
+              } else if (data.sub_agent_status.phase) {
+                setDeepAnalysisPhase(data.sub_agent_status.phase)
+                setUsedDeepAnalysis(true)
+              }
+            }
             if (data.done) {
               // Final event with saved message
               if (data.message) {
                 setMessages(prev => [...prev, data.message])
               }
               if (data.new_title && onTitleUpdate) {
-                onTitleUpdate(threadId, data.new_title)
+                onTitleUpdate(tid, data.new_title)
               }
             } else if (data.token) {
               fullContent += data.token
@@ -103,6 +117,7 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
     } finally {
       setIsStreaming(false)
       setStreamingContent("")
+      setDeepAnalysisPhase(null)
     }
   }, [threadId, isStreaming, onTitleUpdate])
 
@@ -112,6 +127,8 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
     streamingContent,
     loading,
     webResults,
+    deepAnalysisPhase,
+    usedDeepAnalysis,
     fetchMessages,
     sendMessage,
     setMessages,

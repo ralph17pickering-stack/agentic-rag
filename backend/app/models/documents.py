@@ -19,6 +19,7 @@ class DocumentResponse(BaseModel):
     error_message: str | None = None
     chunk_count: int
     content_hash: str | None = None
+    extracted_text_path: str | None = None
     is_duplicate: bool = False
     title: str | None = None
     summary: str | None = None

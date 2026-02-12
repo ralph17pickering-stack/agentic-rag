@@ -3,11 +3,12 @@ import uuid
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, File, status
 from starlette.datastructures import UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from app.dependencies import get_current_user
 from app.services.supabase import get_supabase_client, get_service_supabase_client
 from app.services.ingestion import ingest_document
 from app.services.hashing import sha256_hex
+from app.services.extraction import extract_text
 from app.models.documents import DocumentResponse, UrlIngestRequest
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
@@ -128,6 +129,49 @@ async def upload_document(
     return JSONResponse(content=document, status_code=201)
 
 
+@router.get("/{document_id}/content")
+async def get_document_content(
+    document_id: str,
+    user: dict = Depends(get_current_user),
+):
+    sb = get_supabase_client(user["token"])
+    result = sb.table("documents").select("*").eq("id", document_id).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    document = result.data[0]
+    if document["status"] != "ready":
+        raise HTTPException(status_code=400, detail="Document is not ready")
+
+    service_sb = get_service_supabase_client()
+
+    # If extracted text exists, return it directly
+    if document.get("extracted_text_path"):
+        text_bytes = service_sb.storage.from_("documents").download(
+            document["extracted_text_path"]
+        )
+        return PlainTextResponse(text_bytes.decode("utf-8"))
+
+    # Fallback for legacy documents: re-extract from original file
+    file_bytes = service_sb.storage.from_("documents").download(
+        document["storage_path"]
+    )
+    text = extract_text(file_bytes, document["file_type"])
+
+    # Cache for future requests
+    extracted_path = f"{user['id']}/{document_id}_extracted.txt"
+    service_sb.storage.from_("documents").upload(
+        extracted_path,
+        text.encode("utf-8"),
+        {"content-type": "text/plain; charset=utf-8"},
+    )
+    sb.table("documents").update(
+        {"extracted_text_path": extracted_path}
+    ).eq("id", document_id).execute()
+
+    return PlainTextResponse(text)
+
+
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_document(
     document_id: str,
@@ -150,7 +194,10 @@ async def delete_document(
     # Delete from storage (service role bypasses storage RLS)
     try:
         service_sb = get_service_supabase_client()
-        service_sb.storage.from_("documents").remove([document["storage_path"]])
+        paths_to_remove = [document["storage_path"]]
+        if document.get("extracted_text_path"):
+            paths_to_remove.append(document["extracted_text_path"])
+        service_sb.storage.from_("documents").remove(paths_to_remove)
     except Exception:
         pass
 

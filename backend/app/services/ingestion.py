@@ -39,6 +39,14 @@ async def ingest_document(document_id: str, user_id: str, storage_path: str, fil
             ).eq("id", document_id).execute()
             return
 
+        # Upload extracted text to Storage
+        extracted_path = f"{user_id}/{document_id}_extracted.txt"
+        sb.storage.from_("documents").upload(
+            extracted_path,
+            text.encode("utf-8"),
+            {"content-type": "text/plain; charset=utf-8"},
+        )
+
         # Extract metadata via LLM
         metadata = await extract_metadata(text)
 
@@ -76,6 +84,7 @@ async def ingest_document(document_id: str, user_id: str, storage_path: str, fil
             {
                 "status": "ready",
                 "chunk_count": len(chunks),
+                "extracted_text_path": extracted_path,
                 "title": metadata.title,
                 "summary": metadata.summary,
                 "topics": metadata.topics,

@@ -1,5 +1,7 @@
 import { useCallback, useRef, useState } from "react"
+import { Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { DocumentViewer } from "@/components/documents/DocumentViewer"
 import type { Document } from "@/types"
 
 interface DocumentsPanelProps {
@@ -39,6 +41,7 @@ export function DocumentsPanel({
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
+  const [viewingDoc, setViewingDoc] = useState<Document | null>(null)
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -130,7 +133,12 @@ export function DocumentsPanel({
                 className="flex items-center justify-between rounded-lg border p-3 group"
               >
                 <div className="flex-1 min-w-0 mr-3">
-                  <p className="font-medium truncate">{doc.title || doc.filename}</p>
+                  <p
+                    className={`font-medium truncate ${doc.status === "ready" ? "hover:underline cursor-pointer" : ""}`}
+                    onClick={() => { if (doc.status === "ready") setViewingDoc(doc) }}
+                  >
+                    {doc.title || doc.filename}
+                  </p>
                   {doc.title && (
                     <p className="text-xs text-muted-foreground truncate">{doc.filename}</p>
                   )}
@@ -169,19 +177,37 @@ export function DocumentsPanel({
                     </p>
                   )}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
-                  onClick={() => onDelete(doc.id)}
-                >
-                  Delete
-                </Button>
+                <div className="flex items-center gap-1">
+                  {doc.status === "ready" && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground"
+                      onClick={() => setViewingDoc(doc)}
+                    >
+                      <Eye className="size-4" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                    onClick={() => onDelete(doc.id)}
+                  >
+                    Delete
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      <DocumentViewer
+        document={viewingDoc}
+        open={viewingDoc !== null}
+        onClose={() => setViewingDoc(null)}
+      />
     </div>
   )
 }

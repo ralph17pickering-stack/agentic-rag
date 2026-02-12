@@ -122,3 +122,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Theme transition */
+html.transitioning,
+html.transitioning *,
+html.transitioning *::before,
+html.transitioning *::after {
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease !important;
+}

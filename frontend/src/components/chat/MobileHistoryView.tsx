@@ -1,32 +1,50 @@
+import { MessageSquarePlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { Thread } from "@/types"
 
-interface ThreadSidebarProps {
+interface MobileHistoryViewProps {
   threads: Thread[]
   activeThreadId: string | null
   onSelect: (id: string) => void
   onCreate: () => void
   onDelete: (id: string) => void
+  onNavigateToChat: () => void
 }
 
-export function ThreadSidebar({ threads, activeThreadId, onSelect, onCreate, onDelete }: ThreadSidebarProps) {
+export function MobileHistoryView({
+  threads,
+  activeThreadId,
+  onSelect,
+  onCreate,
+  onDelete,
+  onNavigateToChat,
+}: MobileHistoryViewProps) {
+  const handleSelect = (id: string) => {
+    onSelect(id)
+    onNavigateToChat()
+  }
+
   return (
-    <div className="flex h-full w-64 shrink-0 flex-col border-r">
-      <div className="p-3">
+    <div className="flex flex-1 flex-col min-h-0">
+      <div className="p-3 border-b">
         <Button onClick={onCreate} className="w-full" size="sm">
+          <MessageSquarePlus className="mr-2 h-4 w-4" />
           New Chat
         </Button>
       </div>
       <ScrollArea className="flex-1">
-        <div className="space-y-1 p-2">
+        <div className="space-y-0.5 p-2">
+          {threads.length === 0 && (
+            <p className="p-4 text-center text-sm text-muted-foreground">No conversations yet</p>
+          )}
           {threads.map(thread => (
             <div
               key={thread.id}
-              className={`group flex items-center justify-between rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-accent ${
+              className={`flex items-center justify-between rounded-md px-4 py-3 text-sm cursor-pointer hover:bg-accent ${
                 activeThreadId === thread.id ? "bg-accent" : ""
               }`}
-              onClick={() => onSelect(thread.id)}
+              onClick={() => handleSelect(thread.id)}
             >
               <span className="truncate flex-1">{thread.title}</span>
               <button
@@ -34,7 +52,7 @@ export function ThreadSidebar({ threads, activeThreadId, onSelect, onCreate, onD
                   e.stopPropagation()
                   onDelete(thread.id)
                 }}
-                className="ml-2 hidden text-muted-foreground hover:text-destructive group-hover:inline-block"
+                className="ml-3 text-muted-foreground hover:text-destructive"
               >
                 &times;
               </button>

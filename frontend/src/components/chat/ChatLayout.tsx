@@ -1,12 +1,22 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useThreads } from "@/hooks/useThreads"
 import { useChat } from "@/hooks/useChat"
-import { ThreadSidebar } from "./ThreadSidebar"
+import { usePanelState } from "@/hooks/usePanelState"
+import { LeftPanel } from "./LeftPanel"
+import { RightPanel } from "./RightPanel"
+import { Scrim } from "./Scrim"
 import { MessageArea } from "./MessageArea"
 import { MessageInput } from "./MessageInput"
-import { WebResultsSidebar } from "./WebResultsSidebar"
+import { BottomTabs, type MobileTab } from "./BottomTabs"
+import { MobileHistoryView } from "./MobileHistoryView"
+import { MobileResultsView } from "./MobileResultsView"
+import type { Breakpoint } from "@/hooks/useBreakpoint"
 
-export function ChatLayout() {
+interface ChatLayoutProps {
+  breakpoint: Breakpoint
+}
+
+export function ChatLayout({ breakpoint }: ChatLayoutProps) {
   const {
     threads,
     activeThreadId,
@@ -25,16 +35,43 @@ export function ChatLayout() {
     sendMessage,
     setMessages,
     webResults,
+    deepAnalysisPhase,
+    usedDeepAnalysis,
   } = useChat(activeThreadId, updateThreadTitle)
 
-  const [sidebarDismissed, setSidebarDismissed] = useState(false)
+  const {
+    leftPanel,
+    rightPanel,
+    toggleLeftPanel,
+    pinLeftPanel,
+    unpinLeftPanel,
+    openRightPanel,
+    closeRightPanel,
+    closeAllOverlays,
+  } = usePanelState(breakpoint)
 
-  // Reset dismissed state when new web results arrive
+  const [mobileTab, setMobileTab] = useState<MobileTab>("chat")
+  const [hasNewResults, setHasNewResults] = useState(false)
+  const prevResultsLen = useRef(0)
+
+  // Auto-open right panel on new web results (desktop/tablet)
   useEffect(() => {
-    if (webResults.length > 0) {
-      setSidebarDismissed(false)
+    if (webResults.length > 0 && webResults.length !== prevResultsLen.current) {
+      if (breakpoint !== "mobile") {
+        openRightPanel()
+      } else {
+        setHasNewResults(true)
+      }
     }
-  }, [webResults])
+    prevResultsLen.current = webResults.length
+  }, [webResults, breakpoint, openRightPanel])
+
+  // Clear badge when viewing results tab
+  useEffect(() => {
+    if (mobileTab === "results") {
+      setHasNewResults(false)
+    }
+  }, [mobileTab])
 
   useEffect(() => {
     fetchThreads()
@@ -52,25 +89,104 @@ export function ChatLayout() {
     if (!activeThreadId) {
       const thread = await createThread()
       if (thread) {
-        setTimeout(() => sendMessage(content), 50)
+        sendMessage(content, thread.id)
       }
       return
     }
     sendMessage(content)
   }
 
-  const showSidebar = webResults.length > 0 && !sidebarDismissed
+  const isMobile = breakpoint === "mobile"
+  const hasOverlay = leftPanel === "open-overlay" || rightPanel === "open-overlay"
+  const leftPinned = leftPanel === "open-pinned"
+
+  // Mobile layout
+  if (isMobile) {
+    return (
+      <div className="flex flex-1 flex-col min-h-0">
+        {mobileTab === "chat" && (
+          <>
+            <div className="flex min-w-0 flex-1 flex-col min-h-0">
+              <MessageArea
+                messages={messages}
+                streamingContent={streamingContent}
+                isStreaming={isStreaming}
+                deepAnalysisPhase={deepAnalysisPhase}
+                usedDeepAnalysis={usedDeepAnalysis}
+              />
+              <MessageInput onSend={handleSend} disabled={isStreaming} />
+            </div>
+          </>
+        )}
+        {mobileTab === "history" && (
+          <MobileHistoryView
+            threads={threads}
+            activeThreadId={activeThreadId}
+            onSelect={selectThread}
+            onCreate={createThread}
+            onDelete={deleteThread}
+            onNavigateToChat={() => setMobileTab("chat")}
+          />
+        )}
+        {mobileTab === "results" && (
+          <MobileResultsView results={webResults} />
+        )}
+        <BottomTabs
+          active={mobileTab}
+          onChange={setMobileTab}
+          hasNewResults={hasNewResults}
+        />
+      </div>
+    )
+  }
+
+  // Desktop / tablet layout
+  const headerHeight = "3.5rem"
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)]">
-      <ThreadSidebar
-        threads={threads}
-        activeThreadId={activeThreadId}
-        onSelect={selectThread}
-        onCreate={createThread}
-        onDelete={deleteThread}
-      />
-      <div className="flex min-w-0 flex-1 flex-col">
+    <div className="relative flex overflow-hidden" style={{ height: `calc(100vh - ${headerHeight})` }}>
+      {/* Left panel (pinned takes space, overlay is absolute) */}
+      {leftPinned && (
+        <div className="shrink-0 transition-[width] duration-250 ease-in-out" style={{ width: 280 }}>
+          <LeftPanel
+            threads={threads}
+            activeThreadId={activeThreadId}
+            state={leftPanel}
+            onSelect={selectThread}
+            onCreate={createThread}
+            onDelete={deleteThread}
+            onToggle={toggleLeftPanel}
+            onPin={pinLeftPanel}
+            onUnpin={unpinLeftPanel}
+            canPin={breakpoint === "desktop"}
+          />
+        </div>
+      )}
+
+      {/* Rail (when not pinned) */}
+      {!leftPinned && (
+        <LeftPanel
+          threads={threads}
+          activeThreadId={activeThreadId}
+          state={leftPanel}
+          onSelect={(id) => {
+            selectThread(id)
+            if (leftPanel === "open-overlay") closeAllOverlays()
+          }}
+          onCreate={createThread}
+          onDelete={deleteThread}
+          onToggle={toggleLeftPanel}
+          onPin={pinLeftPanel}
+          onUnpin={unpinLeftPanel}
+          canPin={breakpoint === "desktop"}
+        />
+      )}
+
+      {/* Scrim for overlays */}
+      <Scrim visible={hasOverlay} onClick={closeAllOverlays} />
+
+      {/* Main chat area */}
+      <div className="flex min-w-0 min-h-0 flex-1 flex-col">
         <MessageArea
           messages={messages}
           streamingContent={streamingContent}
@@ -78,12 +194,14 @@ export function ChatLayout() {
         />
         <MessageInput onSend={handleSend} disabled={isStreaming} />
       </div>
-      {showSidebar && (
-        <WebResultsSidebar
-          results={webResults}
-          onClose={() => setSidebarDismissed(true)}
-        />
-      )}
+
+      {/* Right panel */}
+      <RightPanel
+        results={webResults}
+        state={rightPanel}
+        onClose={closeRightPanel}
+        onOpen={openRightPanel}
+      />
     </div>
   )
 }

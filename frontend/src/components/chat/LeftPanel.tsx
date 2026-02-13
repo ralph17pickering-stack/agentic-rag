@@ -1,4 +1,4 @@
-import { MessageSquarePlus, PanelLeftClose, Pin, PinOff, FileText, MessageSquare } from "lucide-react"
+import { MessageSquarePlus, PanelLeftClose, Pin, PinOff, FileText, MessageSquare, Minus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { Thread } from "@/types"
@@ -126,9 +126,10 @@ function ExpandedPanel({
                   e.stopPropagation()
                   onDelete(thread.id)
                 }}
-                className="ml-2 hidden text-muted-foreground hover:text-destructive group-hover:inline-block"
+                className="ml-2 shrink-0 text-muted-foreground hover:text-destructive"
+                title="Delete chat"
               >
-                &times;
+                <Minus className="h-3.5 w-3.5" />
               </button>
             </div>
           ))}

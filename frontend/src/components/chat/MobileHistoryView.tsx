@@ -1,4 +1,4 @@
-import { MessageSquarePlus } from "lucide-react"
+import { MessageSquarePlus, Minus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import type { Thread } from "@/types"
@@ -52,9 +52,10 @@ export function MobileHistoryView({
                   e.stopPropagation()
                   onDelete(thread.id)
                 }}
-                className="ml-3 text-muted-foreground hover:text-destructive"
+                className="ml-3 shrink-0 text-muted-foreground hover:text-destructive"
+                title="Delete chat"
               >
-                &times;
+                <Minus className="h-3.5 w-3.5" />
               </button>
             </div>
           ))}

@@ -112,7 +112,7 @@ Track your progress through the masterclass. Update this file as you complete mo
 - [ ] Enable management of TLS certificates and public hostname for the UI.
 - [ ] GraphRAG functionality.
 - [ ] Save the retrieved web searches with the chats so that clicking on a previous chat also shows the links on the right-hand side.
-- [ ] Implement RAG-Fusion, which retrieves information using multiple queries and combines results to improve overall search coverage and accuracy
+- [x] Implement RAG-Fusion, which retrieves information using multiple queries and combines results to improve overall search coverage and accuracy
 - [x] Documents in the RAG should be viewable in some format. It does not need to be the original file, but should be a readable version of the file.
 - [ ] Web searches imported into the RAG should similarly be readable and should include the original link.
 - [ ] When chat uses file information from the RAG in the response, it should be linked in the right-hand panel to the source document.

@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     rerank_enabled: bool = True
     rerank_top_n: int = 5
     retrieval_candidates: int = 20     # per-method fetch count before merge
+    rag_fusion_enabled: bool = False      # set RAG_FUSION_ENABLED=true in .env to activate
+    rag_fusion_query_count: int = 3       # additional sub-queries; total = 1 + this value
 
     perplexity_api_key: str = ""
     perplexity_model: str = "sonar"

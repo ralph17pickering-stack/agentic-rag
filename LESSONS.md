@@ -260,6 +260,22 @@ When a sub-agent runs inside `_execute_tool` (which is `await`ed sequentially), 
 
 The sub-agent's text tool call parser filters against an explicit allowlist (`retrieve_documents`, `query_documents_metadata`). This prevents the local LLM from attempting to call `web_search` or `deep_analysis` itself (which would cause recursion or unauthorized API calls). The native tool call path also checks the allowlist before execution.
 
+---
+
+## Session: Module 11 — RAG-Fusion
+
+### RAG-Fusion as a Thin Query-Side Wrapper
+
+**RAG-Fusion requires no DB changes** — the existing `reciprocal_rank_fusion()` already accepts N lists. The entire feature is a query-side wrapper: generate sub-queries → run retrieval per query in parallel → merge all result lists via RRF. The retrieval pipeline, reranker, and DB are completely unchanged.
+
+### Async Closure Pattern for Per-Query Dispatch
+
+Extracting a `_retrieve_one(q)` inner async closure lets you dispatch multiple queries cleanly with `asyncio.gather(*[_retrieve_one(q) for q in all_queries])`. The closure captures `mode`, `user_token`, `candidates`, etc. from the outer scope — no need to thread them through a helper function signature.
+
+### Zero-Overhead Feature Flags
+
+When a feature is off (`rag_fusion_enabled=False`), `all_queries = [query]`, `asyncio.gather` runs exactly one coroutine, `len(per_query_results) == 1` skips the extra RRF call. Truly zero overhead on the disabled path — just a list of length 1.
+
 ### Duplicating Tool Call Parsing is Acceptable
 
 The sub-agent duplicates `_parse_text_tool_calls` from `llm.py` rather than sharing it. The sub-agent version adds allowlist filtering and operates in a different context (isolated tool loop vs main chat loop). Extracting a shared utility would couple the two modules and add complexity for minimal DRY benefit — especially since the parsing logic is ~15 lines.

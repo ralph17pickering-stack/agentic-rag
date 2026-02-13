@@ -65,7 +65,7 @@ export function DocumentViewer({ document, open, onClose }: DocumentViewerProps)
           )}
         </DialogHeader>
 
-        <ScrollArea className="flex-1 min-h-0">
+        <ScrollArea className="h-[65vh]">
           {loading && (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="size-6 animate-spin text-muted-foreground" />

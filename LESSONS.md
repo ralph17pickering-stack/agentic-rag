@@ -276,6 +276,30 @@ Extracting a `_retrieve_one(q)` inner async closure lets you dispatch multiple q
 
 When a feature is off (`rag_fusion_enabled=False`), `all_queries = [query]`, `asyncio.gather` runs exactly one coroutine, `len(per_query_results) == 1` skips the extra RRF call. Truly zero overhead on the disabled path — just a list of length 1.
 
+---
+
+## Session: Module 14 — GraphRAG
+
+### ToolContext Needs user_id, Not Just user_token
+
+GraphRAG RPCs use `SECURITY DEFINER` and require an explicit `p_user_id` parameter. The Supabase client obtained via `get_supabase_client(user_token)` only sets postgrest auth — `sb.auth.get_user()` does **not** work on this client. Always pass `user_id` explicitly from the `get_current_user` dependency down through `ToolContext` (add a `user_id: str = ""` field) and into any service that needs it for RPC calls.
+
+### Communities are Derived Data — Delete and Reinsert
+
+Community detection output is fully derived from entities+relationships. Rather than trying to upsert or diff communities, the cleanest approach is `DELETE WHERE user_id = ...` then bulk INSERT after each rebuild. This avoids stale community rows and merge conflicts.
+
+### NetworkX `greedy_modularity_communities` Works on Small Graphs
+
+For typical document collections, `greedy_modularity_communities(G, weight="weight")` from `networkx.algorithms.community` produces meaningful clusters without tuning. Filter results by `min_size` to avoid noise from singleton or pair communities. Import NetworkX lazily inside functions (not at module top level) to keep startup fast.
+
+### Entity-Neighbour Expansion is Purely Additive
+
+Graph expansion appends extra chunks to existing retrieval results rather than replacing them. This means the core relevance ranking is unchanged — expansion only enriches context. Guard with `if user_id` since the service role ingestion path has no user context.
+
+### Test File Placement for Playwright File Upload
+
+Playwright's `browser_file_upload` enforces allowed roots (the project directory). Create test files under the project root rather than `/tmp/` to avoid `File access denied` errors.
+
 ### Duplicating Tool Call Parsing is Acceptable
 
 The sub-agent duplicates `_parse_text_tool_calls` from `llm.py` rather than sharing it. The sub-agent version adds allowlist filtering and operates in a different context (isolated tool loop vs main chat loop). Extracting a shared utility would couple the two modules and add complexity for minimal DRY benefit — especially since the parsing logic is ~15 lines.

@@ -6,9 +6,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers import threads, chat, documents
 from app.services.supabase import get_service_supabase_client
 from app.services.topic_consolidator import consolidate_all_users
+from app.services.community_builder import build_communities_for_all_users
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+async def _community_rebuild_loop():
+    """Periodic community rebuild — runs every 24 hours."""
+    while True:
+        await asyncio.sleep(86400)
+        logger.info("Running periodic community rebuild")
+        try:
+            await build_communities_for_all_users()
+        except Exception:
+            logger.exception("Community rebuild loop error")
 
 
 async def _topic_consolidation_loop():
@@ -37,6 +49,9 @@ async def lifespan(app: FastAPI):
 
     if settings.topic_consolidation_enabled:
         asyncio.create_task(_topic_consolidation_loop())
+
+    if settings.graphrag_community_rebuild_enabled:
+        asyncio.create_task(_community_rebuild_loop())
 
     yield
 

@@ -1,7 +1,10 @@
 import asyncio
+import logging
 
 from langsmith import traceable
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 from app.services.supabase import get_supabase_client
 from app.services.embeddings import generate_embedding
 from app.services.reranker import rerank_chunks
@@ -89,6 +92,7 @@ async def retrieve_chunks(
     date_from: str | None = None,
     date_to: str | None = None,
     recency_weight: float = 0.0,
+    user_id: str = "",
 ) -> list[dict]:
     """Hybrid retrieval pipeline with optional RAG-Fusion query expansion."""
     candidates = settings.retrieval_candidates
@@ -131,5 +135,18 @@ async def retrieve_chunks(
         results = await rerank_chunks(query, results, top_n=top_k)
     else:
         results = results[:top_k]
+
+    # GraphRAG entity-neighbour expansion (additive, transparent)
+    if settings.graphrag_enabled and settings.graphrag_expansion_enabled and results and user_id:
+        from app.services.graph_retrieval import expand_with_entity_neighbors
+        try:
+            existing_ids = {str(c["id"]) for c in results}
+            extra = await expand_with_entity_neighbors(
+                list(existing_ids), user_token, existing_ids,
+                settings.graphrag_expansion_top_k, user_id=user_id,
+            )
+            results = results + extra
+        except Exception:
+            logger.exception("Graph expansion failed, using base results")
 
     return results

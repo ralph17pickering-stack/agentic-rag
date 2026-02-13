@@ -1,5 +1,6 @@
 import logging
 from langsmith import traceable
+from app.config import settings
 from app.services.supabase import get_service_supabase_client
 from app.services.chunker import chunk_text
 from app.services.extraction import extract_text
@@ -78,6 +79,26 @@ async def ingest_document(document_id: str, user_id: str, storage_path: str, fil
                 for chunk, emb in zip(batch_chunks, batch_embeddings)
             ]
             sb.table("chunks").insert(rows).execute()
+
+        # GraphRAG: extract entities and relationships from chunks
+        if settings.graphrag_enabled:
+            try:
+                from app.services.graph_extractor import extract_graph_for_document
+                chunk_rows = [
+                    {"id": r["id"], "content": r["content"]}
+                    for r in sb.table("chunks").select("id,content")
+                                 .eq("document_id", document_id).execute().data
+                ]
+                await extract_graph_for_document(document_id, user_id, chunk_rows)
+            except Exception:
+                logger.exception(f"Graph extraction failed for {document_id}, continuing")
+
+            if settings.graphrag_community_rebuild_enabled:
+                try:
+                    from app.services.community_builder import build_communities_for_user
+                    await build_communities_for_user(user_id)
+                except Exception:
+                    logger.exception(f"Community rebuild failed for user {user_id}, continuing")
 
         # Update status → ready with metadata
         sb.table("documents").update(

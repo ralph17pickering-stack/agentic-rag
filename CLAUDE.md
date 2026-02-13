@@ -36,6 +36,10 @@ RAG app with chat (default) and document ingestion interfaces. Config via env va
 3. **Validate** - Test and verify the implementation works correctly. Use browser testing where applicable via an appropriate MCP
 4. **Iterate** - Fix any issues found during validation
 
+## Test Credentials
+- Email: `test@agentic-rag.dev`
+- Password: `TestPass123!`
+
 ## Progress
 Check PROGRESS.md for current module status. Update it as you complete tasks.
 Check and update LESSONS.md to take into account important takeaways from each session so that you can learn from what works and what doesn't.

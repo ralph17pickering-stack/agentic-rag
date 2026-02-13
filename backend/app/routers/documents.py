@@ -205,6 +205,38 @@ async def delete_document(
     sb.table("documents").delete().eq("id", document_id).execute()
 
 
+@router.post("/backfill-graph")
+async def backfill_graph(user: dict = Depends(get_current_user)):
+    """Re-run graph extraction for all ready documents belonging to the current user."""
+    from app.services.graph_extractor import extract_graph_for_document
+    sb = get_supabase_client(user["token"])
+    service_sb = get_service_supabase_client()
+
+    docs = (
+        sb.table("documents")
+        .select("id")
+        .eq("status", "ready")
+        .execute()
+    ).data
+
+    processed = 0
+    errors = 0
+    for doc in docs:
+        doc_id = doc["id"]
+        try:
+            chunk_rows = [
+                {"id": r["id"], "content": r["content"]}
+                for r in service_sb.table("chunks").select("id,content")
+                             .eq("document_id", doc_id).execute().data
+            ]
+            await extract_graph_for_document(doc_id, user["id"], chunk_rows)
+            processed += 1
+        except Exception:
+            errors += 1
+
+    return {"processed": processed, "errors": errors}
+
+
 @router.post("/from-url")
 async def ingest_from_url(
     body: UrlIngestRequest,

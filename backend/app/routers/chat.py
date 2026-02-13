@@ -68,11 +68,12 @@ async def chat(
         user_token = user["token"]
 
         async def retrieve_fn(query: str, **kwargs) -> list[dict]:
-            return await retrieve_chunks(query, user_token, **kwargs)
+            return await retrieve_chunks(query, user_token, user_id=user["id"], **kwargs)
 
     tool_ctx = ToolContext(
         retrieve_fn=retrieve_fn,
         user_token=user["token"],
+        user_id=user["id"],
         has_documents=has_documents,
     )
 

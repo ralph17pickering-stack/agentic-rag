@@ -33,7 +33,10 @@ SYSTEM_PROMPT_WITH_TOOLS = (
     "topics not likely in their documents, or asks for up-to-date information, news, or general knowledge.\n"
     "4. **deep_analysis** — Perform thorough, multi-pass analysis of the user's documents. "
     "Use this when asked for comprehensive analysis, detailed summaries, or deep investigation "
-    "across documents. Prefer this over retrieve_documents when thoroughness is important.\n\n"
+    "across documents. Prefer this over retrieve_documents when thoroughness is important.\n"
+    "5. **graph_search** — Query the knowledge graph built from the user's documents. "
+    "Use mode='global' for questions about main themes, topics, or a high-level overview of all documents. "
+    "Use mode='relationship' with entity_a and entity_b to explain how two specific entities are connected.\n\n"
     "Choose the most appropriate tool for each query. You may use multiple tools if needed. "
     "When citing information from documents, mention it came from their uploaded documents. "
     "When citing web results, mention the source."
@@ -142,6 +145,38 @@ DEEP_ANALYSIS_TOOL = {
 }
 
 
+GRAPH_SEARCH_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "graph_search",
+        "description": (
+            "Query the knowledge graph extracted from the user's documents. "
+            "Use mode='global' for high-level themes, main topics, or an overview of all documents. "
+            "Use mode='relationship' with entity_a and entity_b to find how two entities are connected."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "mode": {
+                    "type": "string",
+                    "enum": ["global", "relationship"],
+                    "description": "'global' for theme/community overview; 'relationship' for entity path queries.",
+                },
+                "entity_a": {
+                    "type": "string",
+                    "description": "First entity name (required for mode='relationship').",
+                },
+                "entity_b": {
+                    "type": "string",
+                    "description": "Second entity name (required for mode='relationship').",
+                },
+            },
+            "required": ["mode"],
+        },
+    },
+}
+
+
 def get_tools(has_documents: bool) -> list[dict]:
     tools = []
     if has_documents:
@@ -152,6 +187,8 @@ def get_tools(has_documents: bool) -> list[dict]:
         tools.append(WEB_SEARCH_TOOL)
     if settings.sub_agents_enabled and has_documents:
         tools.append(DEEP_ANALYSIS_TOOL)
+    if settings.graphrag_enabled and has_documents:
+        tools.append(GRAPH_SEARCH_TOOL)
     return tools
 
 
@@ -161,6 +198,7 @@ def get_tools(has_documents: bool) -> list[dict]:
 class ToolContext:
     retrieve_fn: RetrieveFn | None = None
     user_token: str = ""
+    user_id: str = ""
     has_documents: bool = False
 
 
@@ -188,6 +226,8 @@ def _format_chunks(chunks: list[dict]) -> str:
             header += f" [topics: {', '.join(c['doc_topics'])}]"
         score = c.get("rerank_score") or c.get("rrf_score") or c.get("similarity", 0)
         header += f" (score: {score:.2f})"
+        if c.get("graph_expanded"):
+            header += " [graph-expanded]"
         parts.append(f"{header}\n{c['content']}")
     return "\n\n".join(parts)
 
@@ -256,6 +296,22 @@ async def _execute_tool(
             focus_areas=focus_areas,
             on_status=on_status,
         )
+
+    elif tool_name == "graph_search":
+        from app.services.graph_retrieval import global_graph_search, relationship_graph_search
+        mode = args.get("mode", "global")
+        if mode == "relationship":
+            entity_a = args.get("entity_a", "")
+            entity_b = args.get("entity_b", "")
+            if not entity_a or not entity_b:
+                return "relationship mode requires both entity_a and entity_b."
+            return await relationship_graph_search(
+                entity_a, entity_b, ctx.user_token, user_id=ctx.user_id
+            )
+        else:
+            return await global_graph_search(
+                ctx.user_token, settings.graphrag_global_communities_top_n, user_id=ctx.user_id
+            )
 
     return f"Unknown tool: {tool_name}"
 

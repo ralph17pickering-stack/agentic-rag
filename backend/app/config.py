@@ -31,7 +31,17 @@ class Settings(BaseSettings):
     sub_agents_enabled: bool = True
 
     topic_consolidation_enabled: bool = True
-    topic_consolidation_interval_hours: int = 24
+    topic_consolidation_interval_hours: float = 24
+
+    graphrag_enabled: bool = True
+    graphrag_extraction_batch_size: int = 5
+    graphrag_entity_types: str = "PERSON,ORGANIZATION,LOCATION,CONCEPT,EVENT,PRODUCT"
+    graphrag_community_min_size: int = 3
+    graphrag_community_chunks_per_summary: int = 5
+    graphrag_community_rebuild_enabled: bool = True
+    graphrag_expansion_enabled: bool = True
+    graphrag_expansion_top_k: int = 3
+    graphrag_global_communities_top_n: int = 5
 
     langchain_tracing_v2: bool = True
     langchain_api_key: str = ""

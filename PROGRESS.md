@@ -111,7 +111,7 @@ Track your progress through the masterclass. Update this file as you complete mo
 - [ ] Add a "Clear Chat" button to the chat UI.
 - [ ] Add a "-" button next to each chat to allow selective deletion of chat threads.
 - [ ] Enable management of TLS certificates and public hostname for the UI.
-- [ ] GraphRAG functionality.
+- [x] GraphRAG functionality.
 - [ ] Save the retrieved web searches with the chats so that clicking on a previous chat also shows the links on the right-hand side.
 - [x] Implement RAG-Fusion, which retrieves information using multiple queries and combines results to improve overall search coverage and accuracy
 - [x] Documents in the RAG should be viewable in some format. It does not need to be the original file, but should be a readable version of the file.

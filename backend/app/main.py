@@ -1,11 +1,25 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import threads, chat, documents
 from app.services.supabase import get_service_supabase_client
+from app.services.topic_consolidator import consolidate_all_users
+from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+async def _topic_consolidation_loop():
+    interval = settings.topic_consolidation_interval_hours * 3600
+    while True:
+        await asyncio.sleep(interval)
+        logger.info("Running periodic topic consolidation")
+        try:
+            await consolidate_all_users()
+        except Exception:
+            logger.exception("Topic consolidation loop error")
 
 
 @asynccontextmanager
@@ -20,6 +34,10 @@ async def lifespan(app: FastAPI):
             logger.info("Created 'documents' storage bucket")
     except Exception:
         logger.exception("Failed to ensure documents storage bucket")
+
+    if settings.topic_consolidation_enabled:
+        asyncio.create_task(_topic_consolidation_loop())
+
     yield
 
 

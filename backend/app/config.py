@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     sql_tool_enabled: bool = True
     sub_agents_enabled: bool = True
 
+    topic_consolidation_enabled: bool = True
+    topic_consolidation_interval_hours: int = 24
+
     langchain_tracing_v2: bool = True
     langchain_api_key: str = ""
     langchain_project: str = "agentic-rag"

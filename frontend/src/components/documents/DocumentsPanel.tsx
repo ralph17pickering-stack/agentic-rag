@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react"
-import { Eye } from "lucide-react"
+import { Eye, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DocumentViewer } from "@/components/documents/DocumentViewer"
 import type { Document } from "@/types"
@@ -42,6 +42,19 @@ export function DocumentsPanel({
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [viewingDoc, setViewingDoc] = useState<Document | null>(null)
+  const [activeTopics, setActiveTopics] = useState<Set<string>>(new Set())
+
+  const toggleTopic = (topic: string) => {
+    setActiveTopics(prev => {
+      const next = new Set(prev)
+      next.has(topic) ? next.delete(topic) : next.add(topic)
+      return next
+    })
+  }
+
+  const filteredDocs = activeTopics.size === 0
+    ? documents
+    : documents.filter(doc => doc.topics?.some(t => activeTopics.has(t)))
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -117,6 +130,27 @@ export function DocumentsPanel({
         <p className="text-sm text-blue-600 mt-2">{info}</p>
       )}
 
+      {activeTopics.size > 0 && (
+        <div className="flex flex-wrap items-center gap-1 mt-3">
+          <span className="text-xs text-muted-foreground">Filtered by:</span>
+          {[...activeTopics].map(topic => (
+            <button
+              key={topic}
+              onClick={() => toggleTopic(topic)}
+              className="inline-flex items-center gap-1 bg-primary text-primary-foreground text-xs rounded-full px-2 py-0.5 hover:bg-primary/80"
+            >
+              {topic} <X className="size-3" />
+            </button>
+          ))}
+          <button
+            onClick={() => setActiveTopics(new Set())}
+            className="text-xs text-muted-foreground underline ml-1"
+          >
+            Clear all
+          </button>
+        </div>
+      )}
+
       {/* Document list */}
       <div className="mt-6 flex-1 overflow-y-auto">
         {loading ? (
@@ -125,9 +159,13 @@ export function DocumentsPanel({
           <p className="text-muted-foreground text-center">
             No documents uploaded yet. Upload a file to get started.
           </p>
+        ) : filteredDocs.length === 0 ? (
+          <p className="text-muted-foreground text-center">
+            No documents match the selected filter.
+          </p>
         ) : (
           <div className="space-y-2">
-            {documents.map((doc) => (
+            {filteredDocs.map((doc) => (
               <div
                 key={doc.id}
                 className="flex items-center justify-between rounded-lg border p-3 group"
@@ -162,12 +200,17 @@ export function DocumentsPanel({
                   {doc.topics && doc.topics.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1">
                       {doc.topics.map((topic) => (
-                        <span
+                        <button
                           key={topic}
-                          className="bg-primary/10 text-primary text-xs rounded-full px-2 py-0.5"
+                          onClick={(e) => { e.stopPropagation(); toggleTopic(topic) }}
+                          className={`text-xs rounded-full px-2 py-0.5 transition-colors ${
+                            activeTopics.has(topic)
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-primary/10 text-primary hover:bg-primary/20"
+                          }`}
                         >
                           {topic}
-                        </span>
+                        </button>
                       ))}
                     </div>
                   )}

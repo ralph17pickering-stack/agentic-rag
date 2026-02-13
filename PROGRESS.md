@@ -106,7 +106,7 @@ Track your progress through the masterclass. Update this file as you complete mo
 
 ### Improvements
 - [ ] File Metadata: Ability to edit metadata for imported files in the UI.
-- [ ] Make Metadata category displayed below files clickable to filter by category.
+- [x] Make Metadata category displayed below files clickable to filter by category.
 - [ ] Add a "Clear Chat" button to the chat UI.
 - [ ] Add a "-" button next to each chat to allow selective deletion of chat threads.
 - [ ] Enable management of TLS certificates and public hostname for the UI.

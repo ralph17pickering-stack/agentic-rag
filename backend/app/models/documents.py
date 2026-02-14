@@ -8,6 +8,13 @@ class UrlIngestRequest(BaseModel):
     title: str | None = None
 
 
+class DocumentUpdateRequest(BaseModel):
+    title: str | None = None
+    summary: str | None = None
+    topics: list[str] | None = None
+    document_date: str | None = None  # ISO date string YYYY-MM-DD, or None to clear
+
+
 class DocumentResponse(BaseModel):
     id: str
     user_id: str

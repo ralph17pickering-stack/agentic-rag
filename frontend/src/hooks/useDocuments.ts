@@ -65,6 +65,24 @@ export function useDocuments() {
     }
   }, [])
 
+  const updateDocument = useCallback(async (
+    id: string,
+    updates: { title?: string | null; summary?: string | null; topics?: string[]; document_date?: string | null }
+  ): Promise<Document> => {
+    const res = await apiFetch(`/api/documents/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updates),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: "Update failed" }))
+      throw new Error(err.detail || "Update failed")
+    }
+    const updated: Document = await res.json()
+    setDocuments(prev => prev.map(d => (d.id === id ? updated : d)))
+    return updated
+  }, [])
+
   // Supabase Realtime subscription for document status updates
   useEffect(() => {
     const channel = supabase
@@ -86,5 +104,5 @@ export function useDocuments() {
     }
   }, [])
 
-  return { documents, loading, uploading, fetchDocuments, uploadDocument, deleteDocument }
+  return { documents, loading, uploading, fetchDocuments, uploadDocument, deleteDocument, updateDocument }
 }

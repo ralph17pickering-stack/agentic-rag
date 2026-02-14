@@ -9,7 +9,7 @@ from app.services.supabase import get_supabase_client, get_service_supabase_clie
 from app.services.ingestion import ingest_document
 from app.services.hashing import sha256_hex
 from app.services.extraction import extract_text
-from app.models.documents import DocumentResponse, UrlIngestRequest
+from app.models.documents import DocumentResponse, UrlIngestRequest, DocumentUpdateRequest
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
@@ -35,6 +35,25 @@ async def list_documents(user: dict = Depends(get_current_user)):
         .execute()
     )
     return result.data
+
+
+@router.patch("/{document_id}", response_model=DocumentResponse)
+async def update_document_metadata(
+    document_id: str,
+    body: DocumentUpdateRequest,
+    user: dict = Depends(get_current_user),
+):
+    sb = get_supabase_client(user["token"])
+    existing = sb.table("documents").select("*").eq("id", document_id).execute()
+    if not existing.data:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    updates = body.model_dump(exclude_none=True)
+    if not updates:
+        return existing.data[0]
+
+    result = sb.table("documents").update(updates).eq("id", document_id).execute()
+    return result.data[0]
 
 
 @router.post("")

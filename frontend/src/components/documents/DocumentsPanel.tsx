@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from "react"
-import { Eye, X } from "lucide-react"
+import { Eye, Pencil, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DocumentViewer } from "@/components/documents/DocumentViewer"
+import { EditMetadataModal } from "@/components/documents/EditMetadataModal"
 import type { Document } from "@/types"
 
 interface DocumentsPanelProps {
@@ -10,6 +11,7 @@ interface DocumentsPanelProps {
   uploading: boolean
   onUpload: (file: File) => Promise<Document>
   onDelete: (id: string) => Promise<void>
+  onUpdate: (id: string, updates: Partial<Pick<Document, "title" | "summary" | "topics" | "document_date">>) => Promise<Document>
 }
 
 const STATUS_COLORS: Record<Document["status"], string> = {
@@ -36,12 +38,14 @@ export function DocumentsPanel({
   uploading,
   onUpload,
   onDelete,
+  onUpdate,
 }: DocumentsPanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [info, setInfo] = useState<string | null>(null)
   const [viewingDoc, setViewingDoc] = useState<Document | null>(null)
+  const [editingDoc, setEditingDoc] = useState<Document | null>(null)
   const [activeTopics, setActiveTopics] = useState<Set<string>>(new Set())
 
   const toggleTopic = (topic: string) => {
@@ -221,6 +225,15 @@ export function DocumentsPanel({
                   )}
                 </div>
                 <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 text-muted-foreground hover:text-foreground"
+                    onClick={(e) => { e.stopPropagation(); setEditingDoc(doc) }}
+                    title="Edit metadata"
+                  >
+                    <Pencil className="size-4" />
+                  </Button>
                   {doc.status === "ready" && (
                     <Button
                       variant="ghost"
@@ -250,6 +263,13 @@ export function DocumentsPanel({
         document={viewingDoc}
         open={viewingDoc !== null}
         onClose={() => setViewingDoc(null)}
+      />
+
+      <EditMetadataModal
+        document={editingDoc}
+        open={editingDoc !== null}
+        onClose={() => setEditingDoc(null)}
+        onSave={onUpdate}
       />
     </div>
   )

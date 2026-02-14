@@ -3,7 +3,7 @@ import { useDocuments } from "@/hooks/useDocuments"
 import { DocumentsPanel } from "./DocumentsPanel"
 
 export function DocumentsLayout() {
-  const { documents, loading, uploading, fetchDocuments, uploadDocument, deleteDocument } =
+  const { documents, loading, uploading, fetchDocuments, uploadDocument, deleteDocument, updateDocument } =
     useDocuments()
 
   useEffect(() => {
@@ -17,6 +17,7 @@ export function DocumentsLayout() {
       uploading={uploading}
       onUpload={uploadDocument}
       onDelete={deleteDocument}
+      onUpdate={updateDocument}
     />
   )
 }

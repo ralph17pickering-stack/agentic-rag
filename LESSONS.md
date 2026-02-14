@@ -278,6 +278,20 @@ When a feature is off (`rag_fusion_enabled=False`), `all_queries = [query]`, `as
 
 ---
 
+## Session: File Metadata Editing
+
+### Align Hook Return Types With Prop Types
+
+**When a hook function returns `Promise<T>`, prop interfaces must accept `Promise<T>`, not `Promise<void>`.**
+
+`updateDocument` returns `Promise<Document>` (the updated record). The `DocumentsPanel` `onUpdate` prop was initially typed as `Promise<void>`, causing a TypeScript error. The fix is to use the exact return type from the hook throughout — prop type, modal `onSave` type, and any wrappers. Widening to `Promise<void>` is tempting but incorrect since callers may need the returned value.
+
+### `/next` Command Workflow
+
+The `/next` → plan → compact → `/build` loop works well for self-contained features. Reading `PROGRESS.md` to identify the next unchecked item and asking targeted questions before planning keeps context focused and avoids building the wrong thing.
+
+---
+
 ## Session: Module 14 — GraphRAG
 
 ### ToolContext Needs user_id, Not Just user_token

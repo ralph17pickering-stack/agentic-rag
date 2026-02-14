@@ -121,6 +121,13 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
     }
   }, [threadId, isStreaming, onTitleUpdate])
 
+  const clearMessages = useCallback(async (tid: string) => {
+    const res = await apiFetch(`/api/threads/${tid}/messages`, { method: "DELETE" })
+    if (res.ok) {
+      setMessages([])
+    }
+  }, [setMessages])
+
   return {
     messages,
     isStreaming,
@@ -132,5 +139,6 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
     fetchMessages,
     sendMessage,
     setMessages,
+    clearMessages,
   }
 }

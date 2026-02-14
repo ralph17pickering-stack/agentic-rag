@@ -108,7 +108,7 @@ Track your progress through the masterclass. Update this file as you complete mo
 - [x] File Metadata: Ability to edit metadata for imported files in the UI.
 - [x] Make Metadata category displayed below files clickable to filter by category.
 - [x] Periodic topic consolidation: background task detects near-duplicate topic tags and unifies them to a canonical form
-- [ ] Add a "Clear Chat" button to the chat UI.
+- [x] Add a "Clear Chat" button to the chat UI.
 - [x] Add a "-" button next to each chat to allow selective deletion of chat threads.
 - [ ] Enable management of TLS certificates and public hostname for the UI.
 - [x] GraphRAG functionality.

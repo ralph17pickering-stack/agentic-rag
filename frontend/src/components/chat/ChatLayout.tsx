@@ -34,6 +34,7 @@ export function ChatLayout({ breakpoint }: ChatLayoutProps) {
     fetchMessages,
     sendMessage,
     setMessages,
+    clearMessages,
     webResults,
     deepAnalysisPhase,
     usedDeepAnalysis,
@@ -96,6 +97,12 @@ export function ChatLayout({ breakpoint }: ChatLayoutProps) {
     sendMessage(content)
   }
 
+  const handleClearChat = async () => {
+    if (!activeThreadId || messages.length === 0) return
+    if (!window.confirm("Clear all messages in this chat? This cannot be undone.")) return
+    await clearMessages(activeThreadId)
+  }
+
   const isMobile = breakpoint === "mobile"
   const hasOverlay = leftPanel === "open-overlay" || rightPanel === "open-overlay"
   const leftPinned = leftPanel === "open-pinned"
@@ -107,6 +114,17 @@ export function ChatLayout({ breakpoint }: ChatLayoutProps) {
         {mobileTab === "chat" && (
           <>
             <div className="flex min-w-0 flex-1 flex-col min-h-0">
+              {activeThreadId && messages.length > 0 && (
+                <div className="flex justify-end border-b px-3 py-1">
+                  <button
+                    onClick={handleClearChat}
+                    className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                    disabled={isStreaming}
+                  >
+                    Clear chat
+                  </button>
+                </div>
+              )}
               <MessageArea
                 messages={messages}
                 streamingContent={streamingContent}
@@ -187,10 +205,23 @@ export function ChatLayout({ breakpoint }: ChatLayoutProps) {
 
       {/* Main chat area */}
       <div className="flex min-w-0 min-h-0 flex-1 flex-col">
+        {activeThreadId && messages.length > 0 && (
+          <div className="flex justify-end border-b px-3 py-1">
+            <button
+              onClick={handleClearChat}
+              className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+              disabled={isStreaming}
+            >
+              Clear chat
+            </button>
+          </div>
+        )}
         <MessageArea
           messages={messages}
           streamingContent={streamingContent}
           isStreaming={isStreaming}
+          deepAnalysisPhase={deepAnalysisPhase}
+          usedDeepAnalysis={usedDeepAnalysis}
         />
         <MessageInput onSend={handleSend} disabled={isStreaming} />
       </div>

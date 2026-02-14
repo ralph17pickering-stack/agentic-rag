@@ -44,3 +44,9 @@ async def update_thread(
 async def delete_thread(thread_id: str, user: dict = Depends(get_current_user)):
     sb = get_supabase_client(user["token"])
     sb.table("threads").delete().eq("id", thread_id).execute()
+
+
+@router.delete("/{thread_id}/messages", status_code=204)
+async def clear_thread_messages(thread_id: str, user: dict = Depends(get_current_user)):
+    sb = get_supabase_client(user["token"])
+    sb.table("messages").delete().eq("thread_id", thread_id).execute()

@@ -19,8 +19,13 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
     try {
       const res = await apiFetch(`/api/threads/${tid}/messages`)
       if (res.ok) {
-        const data = await res.json()
+        const data: Message[] = await res.json()
         setMessages(data)
+        // Restore web results from last assistant message that has them
+        const lastWithResults = [...data].reverse().find(
+          m => m.role === "assistant" && m.web_results && m.web_results.length > 0
+        )
+        setWebResults(lastWithResults?.web_results ?? [])
       }
     } finally {
       setLoading(false)

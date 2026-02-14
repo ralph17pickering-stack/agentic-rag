@@ -13,6 +13,7 @@ export interface Message {
   role: "user" | "assistant" | "system"
   content: string
   created_at: string
+  web_results?: WebResult[] | null
 }
 
 export interface WebResult {

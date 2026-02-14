@@ -79,6 +79,7 @@ async def chat(
 
     async def event_generator():
         full_content = ""
+        accumulated_web_results: list = []
         async for event in stream_chat_completion(
             messages_for_llm,
             thread_id=thread_id,
@@ -89,7 +90,9 @@ async def chat(
                 full_content += event
                 yield {"data": json.dumps({"token": event})}
             elif isinstance(event, ToolEvent) and event.tool_name == "web_search":
-                yield {"data": json.dumps({"web_results": event.data.get("results", [])})}
+                results = event.data.get("results", [])
+                accumulated_web_results.extend(results)
+                yield {"data": json.dumps({"web_results": results})}
             elif isinstance(event, ToolEvent) and event.tool_name == "deep_analysis":
                 yield {"data": json.dumps({"sub_agent_status": event.data})}
 
@@ -102,6 +105,7 @@ async def chat(
                     "user_id": user["id"],
                     "role": "assistant",
                     "content": full_content,
+                    "web_results": accumulated_web_results if accumulated_web_results else None,
                 }
             )
             .execute()

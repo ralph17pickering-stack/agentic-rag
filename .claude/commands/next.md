@@ -1,16 +1,16 @@
 ---
-description: Plan and build the next unchecked item from PROGRESS.md
+description: Plan and build the first item marked [ ] in PROGRESS.md (scan top to bottom, pick the earliest unchecked line)
 ---
 
 # Next
 
-Pick the next unchecked task from PROGRESS.md, plan it interactively, then build it.
+Pick the **first** incomplete task from PROGRESS.md (top-to-bottom scan, earliest `[ ]` line), plan it interactively, then build it.
 
 ## Process
 
 ### 1. Read progress
 
-Read `PROGRESS.md` in full. Find the first item marked `[ ]` (not started). If everything is done, report that and stop.
+Read `PROGRESS.md` in full. Scan from the **top of the file downward** and stop at the very first line marked `[ ]` (not started). Ignore completed `[x]` and in-progress `[-]` items entirely — do not consider which items appear "after" the last completed block. If everything is done, report that and stop.
 
 ### 2. Clarify ambiguities
 

@@ -317,3 +317,31 @@ Playwright's `browser_file_upload` enforces allowed roots (the project directory
 ### Duplicating Tool Call Parsing is Acceptable
 
 The sub-agent duplicates `_parse_text_tool_calls` from `llm.py` rather than sharing it. The sub-agent version adds allowlist filtering and operates in a different context (isolated tool loop vs main chat loop). Extracting a shared utility would couple the two modules and add complexity for minimal DRY benefit — especially since the parsing logic is ~15 lines.
+
+---
+
+## Session: Chat History Delete Button (Firefox Debugging)
+
+### Tailwind v4 + oklch Colors Are Invisible if CSS Variable Chain Fails
+
+**Never use Tailwind CSS variable-based color utilities (`text-muted-foreground`, `text-foreground/50`, `text-slate-400`) for small decorative elements that must be visible in all browsers.**
+
+In Tailwind v4 with shadcn/ui, all semantic colors (`muted-foreground`, `slate-400`, etc.) resolve through a chain of CSS custom properties that ultimately produce `oklch(...)` values. If the variable chain fails (misconfigured theme, browser quirk, or unsupported CSS feature), the computed color is transparent/invalid — making SVG icons with `stroke: currentColor` completely invisible. The element remains in the DOM and takes up space, making layout-based debugging misleading.
+
+**Fix:** Use an explicit hex color via `style={{ color: '#94a3b8' }}` for decorative icons that must be guaranteed visible. Hex values bypass the CSS variable chain entirely.
+
+### CSS Grid is More Reliable than Flexbox for Truncated-Text + Fixed-Button Rows
+
+**For a "title (truncated) + action button" row layout, use `grid-cols-[1fr_auto]` instead of flex.**
+
+The flex approach (`flex-1 truncate` on the span + `shrink-0` on the button) requires `min-w-0` on both the flex container and the child span to work across all browsers. Firefox's flex algorithm handles `min-width: auto` differently from Chromium, meaning the span won't truncate and the button gets pushed off-screen. CSS grid with `grid-template-columns: 1fr auto` is semantically clearer and works consistently across all browsers — the first column gets all available space and truncation "just works".
+
+### Debug Invisible Elements by Checking Computed Color, Not Just Layout
+
+**When an element seems missing, check `window.getComputedStyle(el).color` before investigating layout.**
+
+The delete button was confirmed in the DOM via accessibility snapshot (`button "Delete chat"` was present), had correct dimensions (20×20px), and was within the panel bounds — yet was invisible. Checking computed color revealed an `oklch()` value that rendered as transparent in Firefox. The debugging path should be: DOM presence → computed styles (color, opacity, visibility) → layout/overflow.
+
+### Multiple Vite Dev Servers Accumulate Across Sessions
+
+Running `npm run dev` multiple times without stopping previous instances creates zombie Vite processes, each claiming incrementing ports (5173, 5174, …5184+). All instances watch the same source files and pick up changes, but the proliferation wastes memory. Clean up with `pkill -f vite` before starting a new dev session.

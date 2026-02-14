@@ -115,21 +115,22 @@ function ExpandedPanel({
           {threads.map(thread => (
             <div
               key={thread.id}
-              className={`group flex items-center justify-between rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-accent ${
+              className={`grid grid-cols-[1fr_auto] items-center gap-1 rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-accent ${
                 activeThreadId === thread.id ? "bg-accent" : ""
               }`}
               onClick={() => onSelect(thread.id)}
             >
-              <span className="truncate flex-1">{thread.title}</span>
+              <span className="truncate">{thread.title}</span>
               <button
                 onClick={e => {
                   e.stopPropagation()
                   onDelete(thread.id)
                 }}
-                className="ml-2 shrink-0 text-muted-foreground hover:text-destructive"
+                className="rounded p-0.5 hover:text-red-500"
+                style={{ color: '#94a3b8' }}
                 title="Delete chat"
               >
-                <Minus className="h-3.5 w-3.5" />
+                <Minus className="h-4 w-4" />
               </button>
             </div>
           ))}

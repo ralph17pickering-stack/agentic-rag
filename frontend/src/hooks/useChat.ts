@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react"
 import { apiFetch } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
-import type { Message, WebResult } from "@/types"
+import type { Message, WebResult, CitationSource } from "@/types"
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8001"
 
@@ -13,6 +13,7 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
   const [webResults, setWebResults] = useState<WebResult[]>([])
   const [deepAnalysisPhase, setDeepAnalysisPhase] = useState<string | null>(null)
   const [usedDeepAnalysis, setUsedDeepAnalysis] = useState(false)
+  const [usedSources, setUsedSources] = useState<CitationSource[]>([])
 
   const fetchMessages = useCallback(async (tid: string) => {
     setLoading(true)
@@ -26,6 +27,10 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
           m => m.role === "assistant" && m.web_results && m.web_results.length > 0
         )
         setWebResults(lastWithResults?.web_results ?? [])
+        const lastWithSources = [...data].reverse().find(
+          m => m.role === "assistant" && m.used_sources && m.used_sources.length > 0
+        )
+        setUsedSources(lastWithSources?.used_sources ?? [])
       }
     } finally {
       setLoading(false)
@@ -49,6 +54,7 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
     setIsStreaming(true)
     setStreamingContent("")
     setWebResults([])
+    setUsedSources([])
     setDeepAnalysisPhase(null)
     setUsedDeepAnalysis(false)
 
@@ -91,6 +97,9 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
             if (data.web_results) {
               setWebResults(data.web_results)
             }
+            if (data.used_sources) {
+              setUsedSources(prev => [...prev, ...data.used_sources])
+            }
             if (data.sub_agent_status) {
               if (data.sub_agent_status.done) {
                 setDeepAnalysisPhase(null)
@@ -104,6 +113,11 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
               // Final event with saved message
               if (data.message) {
                 setMessages(prev => [...prev, data.message])
+                if (data.message?.used_sources) {
+                  setUsedSources(data.message.used_sources)
+                } else {
+                  setUsedSources([])
+                }
               }
               if (data.new_title && onTitleUpdate) {
                 onTitleUpdate(tid, data.new_title)
@@ -141,6 +155,7 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
     webResults,
     deepAnalysisPhase,
     usedDeepAnalysis,
+    usedSources,
     fetchMessages,
     sendMessage,
     setMessages,

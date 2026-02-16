@@ -4,6 +4,7 @@ from app.config import settings
 from app.services.supabase import get_service_supabase_client
 from app.services.chunker import chunk_text
 from app.services.extraction import extract_text
+from app.services.document_cleaner import clean_text
 from app.services.embeddings import generate_embeddings
 from app.services.metadata import extract_metadata
 
@@ -33,6 +34,7 @@ async def ingest_document(document_id: str, user_id: str, storage_path: str, fil
         # Download file from Supabase Storage
         file_bytes = sb.storage.from_("documents").download(storage_path)
         text = extract_text(file_bytes, file_type)
+        text = clean_text(text)
 
         if not text.strip():
             sb.table("documents").update(

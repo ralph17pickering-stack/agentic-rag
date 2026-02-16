@@ -14,12 +14,22 @@ export interface Message {
   content: string
   created_at: string
   web_results?: WebResult[] | null
+  used_sources?: CitationSource[] | null
 }
 
 export interface WebResult {
   title: string
   url: string
   snippet: string
+}
+
+export interface CitationSource {
+  chunk_id: string
+  document_id: string
+  doc_title: string
+  chunk_index: number
+  content_preview: string
+  score: number
 }
 
 export interface Document {

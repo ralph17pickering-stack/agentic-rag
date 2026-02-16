@@ -115,7 +115,7 @@ Track your progress through the masterclass. Update this file as you complete mo
 
 #### Phase 2 — Source traceability in the UI
 
-- [ ] **Citations pipeline (backend):** Track which retrieved chunks/docs were used in a response (store “used_sources” per assistant message).
+- [x] **Citations pipeline (backend):** Track which retrieved chunks/docs were used in a response (store "used_sources" per assistant message).
 - [ ] **Right panel citations (docs):** When chat uses RAG file info, show linked sources in the right-hand panel (doc → chunk anchors).
 - [ ] **Right panel citations (web):** When chat uses web results, show linked sources in the right-hand panel (result → URL).
 

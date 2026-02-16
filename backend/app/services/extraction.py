@@ -1,6 +1,7 @@
 """Text extraction dispatcher — converts any supported file format to plain text."""
 
 import csv
+import re
 from io import BytesIO, StringIO
 
 import pypdf
@@ -75,7 +76,6 @@ _HEADING_MAP = {"h1": "#", "h2": "##", "h3": "###", "h4": "####"}
 
 
 def _extract_html(file_bytes: bytes) -> str:
-    import re
     soup = BeautifulSoup(file_bytes, "html.parser")
 
     # Remove boilerplate elements
@@ -103,7 +103,24 @@ def _extract_html(file_bytes: bytes) -> str:
                 lines.append(f"\n{prefix} {text}")
             return
 
+        if tag_name in ("ul", "ol"):
+            counter = 0
+            for child in node.children:
+                from bs4 import Tag as BsTag
+                if isinstance(child, BsTag) and child.name == "li":
+                    text = child.get_text(" ", strip=True)
+                    if text:
+                        if tag_name == "ol":
+                            counter += 1
+                            lines.append(f"{counter}. {text}")
+                        else:
+                            lines.append(f"- {text}")
+                else:
+                    _walk(child)
+            return
+
         if tag_name == "li":
+            # Fallback for bare <li> not inside ul/ol
             text = node.get_text(" ", strip=True)
             if text:
                 lines.append(f"- {text}")
@@ -111,11 +128,6 @@ def _extract_html(file_bytes: bytes) -> str:
 
         if tag_name == "table":
             lines.append(_table_to_markdown(node))
-            return
-
-        if tag_name in ("ul", "ol"):
-            for child in node.children:
-                _walk(child)
             return
 
         if tag_name == "p":

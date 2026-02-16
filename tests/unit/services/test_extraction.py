@@ -72,3 +72,10 @@ def test_html_no_excessive_blank_lines():
     result = extract_text(html, "html")
     # Should not have 3+ consecutive newlines
     assert "\n\n\n" not in result
+
+
+def test_html_ordered_list_items_numbered():
+    html = b"<ol><li>First</li><li>Second</li></ol>"
+    result = extract_text(html, "html")
+    assert "1. First" in result
+    assert "2. Second" in result

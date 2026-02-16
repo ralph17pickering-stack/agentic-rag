@@ -110,8 +110,8 @@ Track your progress through the masterclass. Update this file as you complete mo
 
 - [x] **Clear Chat (current thread):** Add a "Clear Chat" button to remove messages from the active thread (confirm modal).
 - [x] **Selective thread deletion:** "-" button next to each chat to delete chat threads.
-- [-] **Persist web results per thread (storage):** Save retrieved web search results against the thread (model + DB/API). — Code complete; migration 016 needs applying.
-- [-] **Persist web results per thread (UI):** When reopening a thread, restore/show the saved links in the right-hand panel. — Code complete; depends on migration above.
+- [x] **Persist web results per thread (storage):** Save retrieved web search results against the thread (model + DB/API).
+- [x] **Persist web results per thread (UI):** When reopening a thread, restore/show the saved links in the right-hand panel.
 
 #### Phase 2 — Source traceability in the UI
 
@@ -134,7 +134,7 @@ Track your progress through the masterclass. Update this file as you complete mo
 
 #### Phase 5 — Ingestion quality upgrades (chunking + enrichment)
 
-- [ ] **Pre-chunk cleaning (minimal):** Normalise whitespace; remove obvious boilerplate; preserve meaningful structure.
+- [x] **Pre-chunk cleaning (minimal):** Normalise whitespace; remove obvious boilerplate; preserve meaningful structure.
 - [ ] **Structure-preserving reformat:** Reformat tables/lists so they remain useful post-embedding (table→markdown, keep headers).
 - [ ] **Boundary-aware chunking:** Chunking respects headings/sections; keep headings attached; keep tables whole.
 - [ ] **Chunk metadata schema:** Add per-chunk fields (summary, keywords, hypothetical questions) + keywords table.

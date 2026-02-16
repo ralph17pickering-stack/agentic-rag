@@ -43,20 +43,54 @@ def _extract_pdf(file_bytes: bytes) -> str:
 
 
 def _extract_docx(file_bytes: bytes) -> str:
+    from docx.oxml.ns import qn
+
     doc = DocxDocument(BytesIO(file_bytes))
-    parts = []
+    parts: list[str] = []
 
-    # Paragraphs
-    for para in doc.paragraphs:
-        if para.text.strip():
-            parts.append(para.text)
+    body = doc.element.body
+    for child in body:
+        tag = child.tag.split("}")[-1] if "}" in child.tag else child.tag
 
-    # Table cells
-    for table in doc.tables:
-        for row in table.rows:
-            cells = [cell.text.strip() for cell in row.cells if cell.text.strip()]
-            if cells:
-                parts.append(" | ".join(cells))
+        if tag == "p":
+            para_text = "".join(
+                t.text for t in child.iter(qn("w:t"))
+            ).strip()
+            if not para_text:
+                continue
+
+            # Detect heading style via w:pStyle val attribute
+            style_name = None
+            ppr = child.find(qn("w:pPr"))
+            if ppr is not None:
+                pstyle = ppr.find(qn("w:pStyle"))
+                if pstyle is not None:
+                    style_id = pstyle.get(qn("w:val"), "")
+                    # Style IDs: "Heading1", "Heading2", etc. (no spaces)
+                    style_name = _DOCX_HEADING_MAP.get(style_id)
+
+            if style_name:
+                parts.append(f"{style_name} {para_text}")
+            else:
+                parts.append(para_text)
+
+        elif tag == "tbl":
+            rows: list[list[str]] = []
+            for row_elem in child.iter(qn("w:tr")):
+                cells = []
+                for cell_elem in row_elem.iter(qn("w:tc")):
+                    cell_text = "".join(
+                        t.text for t in cell_elem.iter(qn("w:t"))
+                    ).strip()
+                    cells.append(cell_text)
+                if cells:
+                    rows.append(cells)
+
+            if rows:
+                parts.append("| " + " | ".join(rows[0]) + " |")
+                parts.append("| " + " | ".join(["---"] * len(rows[0])) + " |")
+                for row in rows[1:]:
+                    parts.append("| " + " | ".join(row) + " |")
 
     return "\n".join(parts)
 
@@ -73,6 +107,12 @@ def _extract_csv(file_bytes: bytes) -> str:
 
 _STRIP_TAGS = {"script", "style", "nav", "header", "footer", "aside"}
 _HEADING_MAP = {"h1": "#", "h2": "##", "h3": "###", "h4": "####"}
+_DOCX_HEADING_MAP = {
+    "Heading1": "#",
+    "Heading2": "##",
+    "Heading3": "###",
+    "Heading4": "####",
+}
 
 
 def _extract_html(file_bytes: bytes) -> str:

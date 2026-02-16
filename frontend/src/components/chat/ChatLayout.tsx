@@ -36,6 +36,7 @@ export function ChatLayout({ breakpoint }: ChatLayoutProps) {
     setMessages,
     clearMessages,
     webResults,
+    usedSources,
     deepAnalysisPhase,
     usedDeepAnalysis,
   } = useChat(activeThreadId, updateThreadTitle)
@@ -66,6 +67,18 @@ export function ChatLayout({ breakpoint }: ChatLayoutProps) {
     }
     prevResultsLen.current = webResults.length
   }, [webResults, breakpoint, openRightPanel])
+
+  const prevSourcesLen = useRef(0)
+
+  // Auto-open right panel on new citations (desktop/tablet)
+  useEffect(() => {
+    if (usedSources.length > 0 && usedSources.length !== prevSourcesLen.current) {
+      if (breakpoint !== "mobile") {
+        openRightPanel()
+      }
+    }
+    prevSourcesLen.current = usedSources.length
+  }, [usedSources, breakpoint, openRightPanel])
 
   // Clear badge when viewing results tab
   useEffect(() => {
@@ -229,9 +242,10 @@ export function ChatLayout({ breakpoint }: ChatLayoutProps) {
       {/* Right panel */}
       <RightPanel
         results={webResults}
+        usedSources={usedSources}
         state={rightPanel}
         onClose={closeRightPanel}
-        onOpen={openRightPanel}
+        onOpen={() => openRightPanel()}
       />
     </div>
   )

@@ -15,3 +15,4 @@ class MessageResponse(BaseModel):
     content: str
     created_at: datetime
     web_results: Optional[list[dict[str, Any]]] = None
+    used_sources: Optional[list[dict[str, Any]]] = None

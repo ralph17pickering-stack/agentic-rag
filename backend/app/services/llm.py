@@ -273,7 +273,22 @@ async def _execute_tool(
         if "recency_weight" in args:
             kwargs["recency_weight"] = float(args["recency_weight"])
         chunks = await ctx.retrieve_fn(query, **kwargs)
-        return _format_chunks(chunks)
+        # Create citation sources
+        citation_sources = []
+        for chunk in chunks:
+            citation_sources.append({
+                "chunk_id": chunk["id"],
+                "document_id": chunk["document_id"],
+                "doc_title": chunk.get("doc_title") or "Untitled",
+                "chunk_index": chunk.get("chunk_index", 0),
+                "content_preview": chunk["content"][:200] + "..." if len(chunk["content"]) > 200 else chunk["content"],
+                "score": chunk.get("rerank_score") or chunk.get("rrf_score") or chunk.get("similarity", 0.0),
+            })
+        # Return structured result with formatted text and citation sources
+        return {
+            "formatted_text": _format_chunks(chunks),
+            "citation_sources": citation_sources
+        }
 
     elif tool_name == "query_documents_metadata":
         from app.services.sql_tool import execute_metadata_query
@@ -419,6 +434,10 @@ async def stream_chat_completion(
             if name == "web_search" and isinstance(result, dict):
                 yield ToolEvent(tool_name="web_search", data=result)
                 tool_result_str = result.get("answer", "")
+            elif name == "retrieve_documents" and isinstance(result, dict):
+                sources = result.get("citation_sources", [])
+                yield ToolEvent(tool_name="retrieve_documents", data={"sources": sources})
+                tool_result_str = result.get("formatted_text", "")
             elif isinstance(result, dict):
                 tool_result_str = json.dumps(result, default=str)
             else:

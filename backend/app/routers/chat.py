@@ -80,6 +80,7 @@ async def chat(
     async def event_generator():
         full_content = ""
         accumulated_web_results: list = []
+        accumulated_sources: list = []
         async for event in stream_chat_completion(
             messages_for_llm,
             thread_id=thread_id,
@@ -93,10 +94,22 @@ async def chat(
                 results = event.data.get("results", [])
                 accumulated_web_results.extend(results)
                 yield {"data": json.dumps({"web_results": results})}
+            elif isinstance(event, ToolEvent) and event.tool_name == "retrieve_documents":
+                sources = event.data.get("sources", [])
+                accumulated_sources.extend(sources)
+                yield {"data": json.dumps({"used_sources": sources})}
             elif isinstance(event, ToolEvent) and event.tool_name == "deep_analysis":
                 yield {"data": json.dumps({"sub_agent_status": event.data})}
 
         # Save assistant message
+        # Deduplicate sources by chunk_id to prevent duplicates from RAG Fusion
+        seen_chunk_ids = set()
+        deduplicated_sources = []
+        for source in accumulated_sources:
+            if source["chunk_id"] not in seen_chunk_ids:
+                seen_chunk_ids.add(source["chunk_id"])
+                deduplicated_sources.append(source)
+
         saved = (
             sb.table("messages")
             .insert(
@@ -106,6 +119,7 @@ async def chat(
                     "role": "assistant",
                     "content": full_content,
                     "web_results": accumulated_web_results if accumulated_web_results else None,
+                    "used_sources": deduplicated_sources or None,
                 }
             )
             .execute()
@@ -141,6 +155,8 @@ async def chat(
         final_data = {"done": True, "message": assistant_message}
         if new_title:
             final_data["new_title"] = new_title
+        if accumulated_sources:
+            final_data["used_sources"] = deduplicated_sources
         yield {"data": json.dumps(final_data, default=str)}
 
     return EventSourceResponse(event_generator())

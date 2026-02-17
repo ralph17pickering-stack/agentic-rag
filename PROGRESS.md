@@ -122,7 +122,7 @@ Track your progress through the masterclass. Update this file as you complete mo
 #### Phase 3 — Knowledge base readability parity
 
 - [x] **Documents readable:** RAG documents viewable in readable format (not necessarily original file).
-- [ ] **Web documents readable:** Web searches saved/imported into the RAG are readable and include the original link.
+- [x] **Web documents readable:** Web searches saved/imported into the RAG are readable and include the original link.
 - [ ] **KB viewer polish:** Unified viewer experience for file docs + web docs (title, source link, extracted text, metadata).
 
 #### Phase 4 — Metadata curation + governance

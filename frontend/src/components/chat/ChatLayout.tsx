@@ -37,7 +37,7 @@ export function ChatLayout({ breakpoint }: ChatLayoutProps) {
     clearMessages,
     webResults,
     usedSources,
-    deepAnalysisPhase,
+    currentStatus,
     usedDeepAnalysis,
   } = useChat(activeThreadId, updateThreadTitle)
 
@@ -142,7 +142,7 @@ export function ChatLayout({ breakpoint }: ChatLayoutProps) {
                 messages={messages}
                 streamingContent={streamingContent}
                 isStreaming={isStreaming}
-                deepAnalysisPhase={deepAnalysisPhase}
+                currentStatus={currentStatus}
                 usedDeepAnalysis={usedDeepAnalysis}
               />
               <MessageInput onSend={handleSend} disabled={isStreaming} />
@@ -233,7 +233,7 @@ export function ChatLayout({ breakpoint }: ChatLayoutProps) {
           messages={messages}
           streamingContent={streamingContent}
           isStreaming={isStreaming}
-          deepAnalysisPhase={deepAnalysisPhase}
+          currentStatus={currentStatus}
           usedDeepAnalysis={usedDeepAnalysis}
         />
         <MessageInput onSend={handleSend} disabled={isStreaming} />

@@ -5,11 +5,11 @@ interface MessageAreaProps {
   messages: Message[]
   streamingContent: string
   isStreaming: boolean
-  deepAnalysisPhase?: string | null
+  currentStatus?: string | null
   usedDeepAnalysis?: boolean
 }
 
-export function MessageArea({ messages, streamingContent, isStreaming, deepAnalysisPhase, usedDeepAnalysis }: MessageAreaProps) {
+export function MessageArea({ messages, streamingContent, isStreaming, currentStatus, usedDeepAnalysis }: MessageAreaProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -58,7 +58,7 @@ export function MessageArea({ messages, streamingContent, isStreaming, deepAnaly
         {isStreaming && !streamingContent && (
           <div className="flex justify-start">
             <div className="rounded-lg bg-muted px-4 py-2">
-              <span className="animate-pulse">{deepAnalysisPhase || "Thinking..."}</span>
+              <span className="animate-pulse whitespace-pre-line">{currentStatus || "Thinking..."}</span>
             </div>
           </div>
         )}

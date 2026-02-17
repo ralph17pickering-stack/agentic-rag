@@ -312,6 +312,7 @@ async def ingest_from_url(
                 "file_size": len(content),
                 "content_hash": content_hash,
                 "status": "pending",
+                "source_url": body.url,
             }
         )
         .execute()

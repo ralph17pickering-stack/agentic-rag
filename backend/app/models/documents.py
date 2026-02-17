@@ -32,5 +32,6 @@ class DocumentResponse(BaseModel):
     summary: str | None = None
     topics: list[str] = []
     document_date: str | None = None
+    source_url: str | None = None
     created_at: datetime
     updated_at: datetime

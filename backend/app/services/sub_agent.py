@@ -6,7 +6,8 @@ from typing import Any
 from langsmith import traceable
 
 from app.config import settings
-from app.services.llm import RetrieveFn, _format_chunks, client
+from app.services.llm import _format_chunks, client
+from app.tools._registry import RetrieveFn
 
 SUB_AGENT_SYSTEM_PROMPT = (
     "You are a thorough document analyst. Your job is to deeply analyze the user's "

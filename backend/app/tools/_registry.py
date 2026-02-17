@@ -1,11 +1,9 @@
 """Tool plugin registry — types, autodiscovery, and dispatch."""
 from __future__ import annotations
 
-import importlib
 import logging
-from collections.abc import Callable, Awaitable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -35,8 +33,13 @@ class ToolEvent:
 # Plugin interface
 # ---------------------------------------------------------------------------
 
+
+def _always_enabled(_ctx: ToolContext) -> bool:
+    return True
+
+
 @dataclass
 class ToolPlugin:
     definition: dict
-    handler: Callable  # async def handler(args: dict, ctx: ToolContext, on_status=None) -> str | dict
-    enabled: Callable[[ToolContext], bool] = field(default=lambda _: True)
+    handler: Callable[..., Awaitable[str | dict]]
+    enabled: Callable[[ToolContext], bool] = field(default=_always_enabled)

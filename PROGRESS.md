@@ -140,6 +140,11 @@ Track your progress through the masterclass. Update this file as you complete mo
 - [ ] **Chunk metadata schema:** Add per-chunk fields (summary, keywords, hypothetical questions) + keywords table.
 - [ ] **Chunk enrichment pipeline:** For each chunk: generate summary, extract/store keywords, generate hypothetical questions.
 
+#### Phase 5b — Tool infrastructure
+
+- [x] **Tool registry:** File-based autodiscovery — add a tool by dropping a file into `backend/app/tools/`; all five existing tools migrated
+- [x] **Text tool call parsing:** Handle all three common local LLM text formats (`<function=...>`, `<tool_call>` JSON, bare JSON array)
+
 #### Phase 6 — Projects (organisation + sharing)
 
 - [ ] **Projects v1:** Chats + documents belong to a project; project switcher; default project per user.

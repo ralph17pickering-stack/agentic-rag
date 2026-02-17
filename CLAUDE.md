@@ -13,11 +13,10 @@ RAG app with chat (default) and document ingestion interfaces. Config via env va
 - Python backend must use a `venv` virtual environment
 - No LangChain, no LangGraph - raw SDK calls only
 - Use Pydantic for structured LLM outputs
-- All tables need Row-Level Security - users only see their own data
+- All tables need Row-Level Security - users only see their own data unless sharing is enabled
 - Stream chat responses via SSE
 - Use Supabase Realtime for ingestion status updates
 - Module 2+ uses stateless completions - store and send chat history yourself
-- Ingestion is manual file upload only - no connectors or automated pipelines
 
 ## Planning
 - Save all plans to `.agent/plans/` folder
@@ -35,6 +34,16 @@ RAG app with chat (default) and document ingestion interfaces. Config via env va
 2. **Build** - Execute the plan to implement the feature
 3. **Validate** - Test and verify the implementation works correctly. Use browser testing where applicable via an appropriate MCP
 4. **Iterate** - Fix any issues found during validation
+
+## Browser Testing — Slow Processing Steps
+
+When a browser test triggers an action that involves background processing (LLM calls, ingestion pipelines, embedding, etc.), **do not poll the page in a loop**. Instead, after triggering the action, use `AskUserQuestion` with these options:
+
+- **Check now** — proceed to inspect the page/API for the expected result
+- **Skip this check** — accept code-review as sufficient verification and move on
+- **Troubleshoot** — investigate why the page hasn't updated (check backend logs, API status, etc.)
+
+This prevents burning tokens on repeated `browser_wait_for` / `browser_snapshot` calls while waiting for a slow local LLM or ingestion pipeline.
 
 ## Test Credentials
 - Email: `test@agentic-rag.dev`

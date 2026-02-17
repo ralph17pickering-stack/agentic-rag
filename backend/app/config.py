@@ -11,8 +11,9 @@ class Settings(BaseSettings):
     llm_api_key: str = "not-needed"
     llm_model: str = "local-model"
 
+    embedding_base_url: str = ""    # If set, embeddings use this URL instead of llm_base_url
     embedding_model: str = "local-model"
-    embedding_dim: int = 2048
+    embedding_dim: int = 768
     chunk_size: int = 500
     chunk_overlap: int = 50
 

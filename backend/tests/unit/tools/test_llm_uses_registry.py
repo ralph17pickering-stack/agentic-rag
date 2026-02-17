@@ -15,7 +15,9 @@ def test_get_tools_delegates_to_registry(monkeypatch):
     monkeypatch.setattr(reg, "_plugins", {"fake": fake_plugin})
 
     from app.services import llm
-    tools = llm.get_tools(has_documents=True)
+    from app.tools._registry import ToolContext
+    ctx = ToolContext(has_documents=True)
+    tools = llm.get_tools(ctx)
     names = [t["function"]["name"] for t in tools]
     assert "fake" in names
 

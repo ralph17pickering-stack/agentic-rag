@@ -6,7 +6,8 @@ from typing import Any
 from langsmith import traceable
 
 from app.config import settings
-from app.services.llm import _format_chunks, client
+from app.services.llm import client
+from app.tools.retrieve_documents import _format_chunks
 from app.tools._registry import RetrieveFn
 
 SUB_AGENT_SYSTEM_PROMPT = (

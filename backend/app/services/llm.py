@@ -48,30 +48,9 @@ SYSTEM_PROMPT_WITH_TOOLS = (
     "When citing web results, mention the source."
 )
 
-def get_tools(has_documents: bool) -> list[dict]:
-    return _registry_get_tools(ToolContext(has_documents=has_documents))
+def get_tools(ctx: ToolContext) -> list[dict]:
+    return _registry_get_tools(ctx)
 
-
-# --- Helpers ---
-
-def _format_chunks(chunks: list[dict]) -> str:
-    if not chunks:
-        return "No relevant documents found."
-    parts = []
-    for i, c in enumerate(chunks, 1):
-        header = f"[Chunk {i}]"
-        if c.get("doc_title"):
-            header += f" (from: {c['doc_title']})"
-        if c.get("doc_date"):
-            header += f" [date: {c['doc_date']}]"
-        if c.get("doc_topics"):
-            header += f" [topics: {', '.join(c['doc_topics'])}]"
-        score = c.get("rerank_score") or c.get("rrf_score") or c.get("similarity", 0)
-        header += f" (score: {score:.2f})"
-        if c.get("graph_expanded"):
-            header += " [graph-expanded]"
-        parts.append(f"{header}\n{c['content']}")
-    return "\n\n".join(parts)
 
 
 def _parse_text_tool_calls(content: str) -> list[dict] | None:
@@ -154,7 +133,7 @@ async def stream_chat_completion(
     user_id: str = "",
     tool_ctx: ToolContext | None = None,
 ) -> AsyncIterator[str | ToolEvent]:
-    tools = get_tools(tool_ctx.has_documents) if tool_ctx else []
+    tools = get_tools(tool_ctx) if tool_ctx else []
     system_prompt = SYSTEM_PROMPT_WITH_TOOLS if tools else SYSTEM_PROMPT
     full_messages = [{"role": "system", "content": system_prompt}] + messages
 
@@ -211,6 +190,10 @@ async def stream_chat_completion(
                     if tc["name"] == "web_search" and isinstance(result, dict):
                         yield ToolEvent(tool_name="web_search", data=result)
                         tool_result_str = result.get("answer", "")
+                    elif tc["name"] == "retrieve_documents" and isinstance(result, dict):
+                        sources = result.get("citation_sources", [])
+                        yield ToolEvent(tool_name="retrieve_documents", data={"sources": sources})
+                        tool_result_str = result.get("formatted_text", "")
                     elif isinstance(result, dict):
                         tool_result_str = json.dumps(result, default=str)
                     else:

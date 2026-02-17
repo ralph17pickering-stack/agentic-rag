@@ -8,6 +8,10 @@ from langsmith.wrappers import wrap_openai
 from openai import AsyncOpenAI
 from app.config import settings
 from app.tools._registry import ToolContext, ToolEvent
+from app.tools._registry import (
+    get_tools as _registry_get_tools,
+    execute_tool as _registry_execute_tool,
+)
 
 client = wrap_openai(
     AsyncOpenAI(
@@ -44,154 +48,8 @@ SYSTEM_PROMPT_WITH_TOOLS = (
     "When citing web results, mention the source."
 )
 
-# --- Tool Definitions ---
-
-RETRIEVE_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "retrieve_documents",
-        "description": "Search the user's uploaded documents for information relevant to their query.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "The search query to find relevant document chunks.",
-                },
-                "date_from": {
-                    "type": "string",
-                    "description": "Optional start date filter (YYYY-MM-DD).",
-                },
-                "date_to": {
-                    "type": "string",
-                    "description": "Optional end date filter (YYYY-MM-DD).",
-                },
-                "recency_weight": {
-                    "type": "number",
-                    "description": "Weight 0-1 for recency bias. 0 = pure similarity.",
-                },
-            },
-            "required": ["query"],
-        },
-    },
-}
-
-SQL_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "query_documents_metadata",
-        "description": (
-            "Query structured metadata about the user's documents using natural language. "
-            "Use for questions about document counts, file types, topics, dates, sizes, etc."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "question": {
-                    "type": "string",
-                    "description": "The natural language question about document metadata.",
-                },
-            },
-            "required": ["question"],
-        },
-    },
-}
-
-WEB_SEARCH_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "web_search",
-        "description": (
-            "Search the web for current information, news, or general knowledge. "
-            "Use when the answer is unlikely to be in the user's documents."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "The search query.",
-                },
-            },
-            "required": ["query"],
-        },
-    },
-}
-
-DEEP_ANALYSIS_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "deep_analysis",
-        "description": (
-            "Perform a thorough, multi-pass analysis of the user's documents. "
-            "Use when the user asks for comprehensive analysis, detailed summaries, "
-            "or deep investigation across their documents. This does multiple rounds "
-            "of retrieval with different queries to ensure thorough coverage."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "The analysis query describing what to investigate.",
-                },
-                "focus_areas": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "Optional list of specific areas or topics to focus on.",
-                },
-            },
-            "required": ["query"],
-        },
-    },
-}
-
-
-GRAPH_SEARCH_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "graph_search",
-        "description": (
-            "Query the knowledge graph extracted from the user's documents. "
-            "Use mode='global' for high-level themes, main topics, or an overview of all documents. "
-            "Use mode='relationship' with entity_a and entity_b to find how two entities are connected."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "mode": {
-                    "type": "string",
-                    "enum": ["global", "relationship"],
-                    "description": "'global' for theme/community overview; 'relationship' for entity path queries.",
-                },
-                "entity_a": {
-                    "type": "string",
-                    "description": "First entity name (required for mode='relationship').",
-                },
-                "entity_b": {
-                    "type": "string",
-                    "description": "Second entity name (required for mode='relationship').",
-                },
-            },
-            "required": ["mode"],
-        },
-    },
-}
-
-
 def get_tools(has_documents: bool) -> list[dict]:
-    tools = []
-    if has_documents:
-        tools.append(RETRIEVE_TOOL)
-    if settings.sql_tool_enabled and has_documents:
-        tools.append(SQL_TOOL)
-    if settings.web_search_enabled and settings.perplexity_api_key:
-        tools.append(WEB_SEARCH_TOOL)
-    if settings.sub_agents_enabled and has_documents:
-        tools.append(DEEP_ANALYSIS_TOOL)
-    if settings.graphrag_enabled and has_documents:
-        tools.append(GRAPH_SEARCH_TOOL)
-    return tools
+    return _registry_get_tools(ToolContext(has_documents=has_documents))
 
 
 # --- Helpers ---
@@ -247,72 +105,7 @@ async def _execute_tool(
     ctx: ToolContext,
     on_status: Callable[[str], Awaitable[None]] | None = None,
 ) -> str | dict:
-    if tool_name == "retrieve_documents" and ctx.retrieve_fn:
-        query = args.get("query", "")
-        kwargs = {}
-        if "date_from" in args:
-            kwargs["date_from"] = args["date_from"]
-        if "date_to" in args:
-            kwargs["date_to"] = args["date_to"]
-        if "recency_weight" in args:
-            kwargs["recency_weight"] = float(args["recency_weight"])
-        chunks = await ctx.retrieve_fn(query, **kwargs)
-        # Create citation sources
-        citation_sources = []
-        for chunk in chunks:
-            citation_sources.append({
-                "chunk_id": chunk["id"],
-                "document_id": chunk["document_id"],
-                "doc_title": chunk.get("doc_title") or "Untitled",
-                "chunk_index": chunk.get("chunk_index", 0),
-                "content_preview": chunk["content"][:200] + "..." if len(chunk["content"]) > 200 else chunk["content"],
-                "score": chunk.get("rerank_score") or chunk.get("rrf_score") or chunk.get("similarity", 0.0),
-            })
-        # Return structured result with formatted text and citation sources
-        return {
-            "formatted_text": _format_chunks(chunks),
-            "citation_sources": citation_sources
-        }
-
-    elif tool_name == "query_documents_metadata":
-        from app.services.sql_tool import execute_metadata_query
-        question = args.get("question", "")
-        return await execute_metadata_query(question, ctx.user_token)
-
-    elif tool_name == "web_search":
-        from app.services.web_search import search_web
-        query = args.get("query", "")
-        return await search_web(query)
-
-    elif tool_name == "deep_analysis" and ctx.retrieve_fn:
-        from app.services.sub_agent import run_sub_agent
-        query = args.get("query", "")
-        focus_areas = args.get("focus_areas")
-        return await run_sub_agent(
-            query=query,
-            retrieve_fn=ctx.retrieve_fn,
-            user_token=ctx.user_token,
-            focus_areas=focus_areas,
-            on_status=on_status,
-        )
-
-    elif tool_name == "graph_search":
-        from app.services.graph_retrieval import global_graph_search, relationship_graph_search
-        mode = args.get("mode", "global")
-        if mode == "relationship":
-            entity_a = args.get("entity_a", "")
-            entity_b = args.get("entity_b", "")
-            if not entity_a or not entity_b:
-                return "relationship mode requires both entity_a and entity_b."
-            return await relationship_graph_search(
-                entity_a, entity_b, ctx.user_token, user_id=ctx.user_id
-            )
-        else:
-            return await global_graph_search(
-                ctx.user_token, settings.graphrag_global_communities_top_n, user_id=ctx.user_id
-            )
-
-    return f"Unknown tool: {tool_name}"
+    return await _registry_execute_tool(tool_name, args, ctx, on_status=on_status)
 
 
 # --- Main streaming function ---

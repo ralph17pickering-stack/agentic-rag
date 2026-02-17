@@ -1,6 +1,26 @@
 """retrieve_documents tool — searches the user's uploaded document chunks."""
 from app.tools._registry import ToolContext, ToolPlugin
-from app.services.llm import _format_chunks
+
+
+def _format_chunks(chunks: list[dict]) -> str:
+    """Format retrieved chunks into a readable text block."""
+    if not chunks:
+        return "No relevant documents found."
+    parts = []
+    for i, c in enumerate(chunks, 1):
+        header = f"[Chunk {i}]"
+        if c.get("doc_title"):
+            header += f" (from: {c['doc_title']})"
+        if c.get("doc_date"):
+            header += f" [date: {c['doc_date']}]"
+        if c.get("doc_topics"):
+            header += f" [topics: {', '.join(c['doc_topics'])}]"
+        score = c.get("rerank_score") or c.get("rrf_score") or c.get("similarity", 0)
+        header += f" (score: {score:.2f})"
+        if c.get("graph_expanded"):
+            header += " [graph-expanded]"
+        parts.append(f"{header}\n{c['content']}")
+    return "\n\n".join(parts)
 
 _DEFINITION = {
     "type": "function",

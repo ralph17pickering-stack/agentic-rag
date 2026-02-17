@@ -90,14 +90,18 @@ async def chat(
             if isinstance(event, str):
                 full_content += event
                 yield {"data": json.dumps({"token": event})}
+            elif isinstance(event, ToolEvent) and event.tool_name == "tool_start":
+                yield {"data": json.dumps({"tool_start": event.data})}
             elif isinstance(event, ToolEvent) and event.tool_name == "web_search":
                 results = event.data.get("results", [])
                 accumulated_web_results.extend(results)
-                yield {"data": json.dumps({"web_results": results})}
+                query = event.data.get("query", "")
+                yield {"data": json.dumps({"web_results": results, "query": query})}
             elif isinstance(event, ToolEvent) and event.tool_name == "retrieve_documents":
                 sources = event.data.get("sources", [])
                 accumulated_sources.extend(sources)
-                yield {"data": json.dumps({"used_sources": sources})}
+                query = event.data.get("query", "")
+                yield {"data": json.dumps({"used_sources": sources, "query": query})}
             elif isinstance(event, ToolEvent) and event.tool_name == "deep_analysis":
                 yield {"data": json.dumps({"sub_agent_status": event.data})}
 

@@ -2,6 +2,7 @@ import { useState, useCallback } from "react"
 import { apiFetch } from "@/lib/api"
 import { supabase } from "@/lib/supabase"
 import type { Message, WebResult, CitationSource } from "@/types"
+import { formatToolStart, formatToolResult } from "@/lib/toolStatus"
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8001"
 
@@ -11,7 +12,7 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
   const [streamingContent, setStreamingContent] = useState("")
   const [loading, setLoading] = useState(false)
   const [webResults, setWebResults] = useState<WebResult[]>([])
-  const [deepAnalysisPhase, setDeepAnalysisPhase] = useState<string | null>(null)
+  const [currentStatus, setCurrentStatus] = useState<string | null>(null)
   const [usedDeepAnalysis, setUsedDeepAnalysis] = useState(false)
   const [usedSources, setUsedSources] = useState<CitationSource[]>([])
 
@@ -55,7 +56,7 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
     setStreamingContent("")
     setWebResults([])
     setUsedSources([])
-    setDeepAnalysisPhase(null)
+    setCurrentStatus(null)
     setUsedDeepAnalysis(false)
 
     try {
@@ -94,23 +95,29 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
 
           try {
             const data = JSON.parse(jsonStr)
+            if (data.tool_start) {
+              setCurrentStatus(formatToolStart(data.tool_start))
+            }
             if (data.web_results) {
+              const query: string = data.query ?? ""
               setWebResults(data.web_results)
+              setCurrentStatus(formatToolResult("web_search", data.web_results.length, query))
             }
             if (data.used_sources) {
+              const query: string = data.query ?? ""
               setUsedSources(prev => [...prev, ...data.used_sources])
+              setCurrentStatus(formatToolResult("retrieve_documents", data.used_sources.length, query))
             }
             if (data.sub_agent_status) {
               if (data.sub_agent_status.done) {
-                setDeepAnalysisPhase(null)
+                setCurrentStatus(null)
                 setUsedDeepAnalysis(true)
               } else if (data.sub_agent_status.phase) {
-                setDeepAnalysisPhase(data.sub_agent_status.phase)
+                setCurrentStatus(data.sub_agent_status.phase)
                 setUsedDeepAnalysis(true)
               }
             }
             if (data.done) {
-              // Final event with saved message
               if (data.message) {
                 setMessages(prev => [...prev, data.message])
                 if (data.message?.used_sources) {
@@ -125,6 +132,10 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
             } else if (data.token) {
               fullContent += data.token
               setStreamingContent(fullContent)
+              // Clear status on first token — response has started
+              if (fullContent.length === data.token.length) {
+                setCurrentStatus(null)
+              }
             }
           } catch {
             // Skip malformed JSON
@@ -136,7 +147,7 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
     } finally {
       setIsStreaming(false)
       setStreamingContent("")
-      setDeepAnalysisPhase(null)
+      setCurrentStatus(null)
     }
   }, [threadId, isStreaming, onTitleUpdate])
 
@@ -153,7 +164,7 @@ export function useChat(threadId: string | null, onTitleUpdate?: (threadId: stri
     streamingContent,
     loading,
     webResults,
-    deepAnalysisPhase,
+    currentStatus,
     usedDeepAnalysis,
     usedSources,
     fetchMessages,

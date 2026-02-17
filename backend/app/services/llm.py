@@ -182,17 +182,35 @@ async def stream_chat_completion(
                 for tc in text_tool_calls:
                     if tc["name"] == "deep_analysis":
                         used_deep_analysis = True
+                    # Yield tool_start event before executing
+                    tool_start_data: dict = {"tool": tc["name"]}
+                    if tc["name"] == "retrieve_documents":
+                        tool_start_data["query"] = tc["arguments"].get("query", "")
+                    elif tc["name"] == "web_search":
+                        tool_start_data["query"] = tc["arguments"].get("query", "")
+                    elif tc["name"] == "graph_search":
+                        tool_start_data["mode"] = tc["arguments"].get("mode", "global")
+                        if tc["arguments"].get("entity_a"):
+                            tool_start_data["entity_a"] = tc["arguments"]["entity_a"]
+                        if tc["arguments"].get("entity_b"):
+                            tool_start_data["entity_b"] = tc["arguments"]["entity_b"]
+                    elif tc["name"] == "query_documents_metadata":
+                        tool_start_data["question"] = tc["arguments"].get("question", "")
+                    elif tc["name"] == "deep_analysis":
+                        tool_start_data["query"] = tc["arguments"].get("query", "")
+                    yield ToolEvent(tool_name="tool_start", data=tool_start_data)
                     status_events.clear()
                     result = await _execute_tool(tc["name"], tc["arguments"], tool_ctx, on_status)
                     for evt in status_events:
                         yield evt
                     status_events.clear()
                     if tc["name"] == "web_search" and isinstance(result, dict):
-                        yield ToolEvent(tool_name="web_search", data=result)
+                        result_with_query = {**result, "query": tc["arguments"].get("query", "")}
+                        yield ToolEvent(tool_name="web_search", data=result_with_query)
                         tool_result_str = result.get("answer", "")
                     elif tc["name"] == "retrieve_documents" and isinstance(result, dict):
                         sources = result.get("citation_sources", [])
-                        yield ToolEvent(tool_name="retrieve_documents", data={"sources": sources})
+                        yield ToolEvent(tool_name="retrieve_documents", data={"sources": sources, "query": tc["arguments"].get("query", "")})
                         tool_result_str = result.get("formatted_text", "")
                     elif isinstance(result, dict):
                         tool_result_str = json.dumps(result, default=str)
@@ -218,6 +236,23 @@ async def stream_chat_completion(
 
             if name == "deep_analysis":
                 used_deep_analysis = True
+            # Yield tool_start event before executing
+            tool_start_data: dict = {"tool": name}
+            if name == "retrieve_documents":
+                tool_start_data["query"] = args.get("query", "")
+            elif name == "web_search":
+                tool_start_data["query"] = args.get("query", "")
+            elif name == "graph_search":
+                tool_start_data["mode"] = args.get("mode", "global")
+                if args.get("entity_a"):
+                    tool_start_data["entity_a"] = args["entity_a"]
+                if args.get("entity_b"):
+                    tool_start_data["entity_b"] = args["entity_b"]
+            elif name == "query_documents_metadata":
+                tool_start_data["question"] = args.get("question", "")
+            elif name == "deep_analysis":
+                tool_start_data["query"] = args.get("query", "")
+            yield ToolEvent(tool_name="tool_start", data=tool_start_data)
             status_events.clear()
             result = await _execute_tool(name, args, tool_ctx, on_status)
             for evt in status_events:
@@ -226,11 +261,11 @@ async def stream_chat_completion(
 
             # For web_search, yield a ToolEvent with structured results, then use answer text as tool result
             if name == "web_search" and isinstance(result, dict):
-                yield ToolEvent(tool_name="web_search", data=result)
+                yield ToolEvent(tool_name="web_search", data={**result, "query": args.get("query", "")})
                 tool_result_str = result.get("answer", "")
             elif name == "retrieve_documents" and isinstance(result, dict):
                 sources = result.get("citation_sources", [])
-                yield ToolEvent(tool_name="retrieve_documents", data={"sources": sources})
+                yield ToolEvent(tool_name="retrieve_documents", data={"sources": sources, "query": args.get("query", "")})
                 tool_result_str = result.get("formatted_text", "")
             elif isinstance(result, dict):
                 tool_result_str = json.dumps(result, default=str)

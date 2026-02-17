@@ -9,7 +9,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { apiFetch } from "@/lib/api"
 import type { Document } from "@/types"
-import { Loader2 } from "lucide-react"
+import { ExternalLink, Loader2 } from "lucide-react"
 
 interface DocumentViewerProps {
   document: Document | null
@@ -55,9 +55,23 @@ export function DocumentViewer({ document, open, onClose }: DocumentViewerProps)
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent className="sm:max-w-4xl max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="truncate">
-            {document?.title || document?.filename}
-          </DialogTitle>
+          <div className="flex items-start justify-between gap-3 pr-8">
+            <DialogTitle className="truncate">
+              {document?.title || document?.filename}
+            </DialogTitle>
+            {document?.source_url && (
+              <a
+                href={document.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mt-0.5"
+                title={document.source_url}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                View original
+              </a>
+            )}
+          </div>
           {document?.title && (
             <DialogDescription className="truncate">
               {document.filename}

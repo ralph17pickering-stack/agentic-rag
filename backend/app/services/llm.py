@@ -115,15 +115,16 @@ def _parse_text_tool_calls(content: str) -> list[dict] | None:
     # --- Format 3: bare JSON array (strip optional code fence) ---
     stripped = content.strip()
     if stripped.startswith("```"):
-        stripped = re.sub(r"^```[a-z]*\n?", "", stripped).rstrip("`").strip()
+        stripped = re.sub(r"^```[a-zA-Z]*\n?", "", stripped).rstrip("`").strip()
     if stripped.startswith("["):
         try:
+            from app.tools._registry import _plugins
             data = json.loads(stripped)
             if isinstance(data, list):
                 tool_calls = [
                     {"name": item["name"], "arguments": item.get("arguments", {})}
                     for item in data
-                    if isinstance(item, dict) and "name" in item
+                    if isinstance(item, dict) and "name" in item and item["name"] in _plugins
                 ]
                 return tool_calls if tool_calls else None
         except (json.JSONDecodeError, KeyError):

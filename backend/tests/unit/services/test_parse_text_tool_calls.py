@@ -58,6 +58,40 @@ def test_format3_wrapped_in_code_fence():
     assert result[0]["name"] == "web_search"
 
 
+def test_format2_parameters_key_fallback():
+    """Some models use 'parameters' instead of 'arguments'."""
+    content = '<tool_call>\n{"name": "web_search", "parameters": {"query": "test"}}\n</tool_call>'
+    result = parse(content)
+    assert result is not None
+    assert result[0]["name"] == "web_search"
+    assert result[0]["arguments"]["query"] == "test"
+
+
+def test_format3_uppercase_code_fence(monkeypatch):
+    """Uppercase language tags like ```JSON should also be stripped."""
+    import app.tools._registry as reg
+    from app.tools._registry import ToolPlugin, ToolContext
+    fake_plugin = ToolPlugin(
+        definition={"type": "function", "function": {"name": "web_search", "description": "", "parameters": {}}},
+        handler=lambda a, c, **kw: "ok",
+        enabled=lambda ctx: True,
+    )
+    monkeypatch.setattr(reg, "_plugins", {"web_search": fake_plugin})
+    content = '```JSON\n[{"name": "web_search", "arguments": {"query": "hello"}}]\n```'
+    result = parse(content)
+    assert result is not None
+    assert result[0]["name"] == "web_search"
+
+
+def test_format3_no_false_positive_on_named_objects(monkeypatch):
+    """Arrays of objects with 'name' key that are not tool names must return None."""
+    import app.tools._registry as reg
+    monkeypatch.setattr(reg, "_plugins", {})  # no tools registered
+    content = '[{"name": "Alice", "age": 30}, {"name": "Bob", "age": 25}]'
+    result = parse(content)
+    assert result is None
+
+
 # --- No match ---
 
 def test_returns_none_for_plain_text():

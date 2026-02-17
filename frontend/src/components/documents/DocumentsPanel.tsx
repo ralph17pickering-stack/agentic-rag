@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react"
-import { Eye, Pencil, X } from "lucide-react"
+import { Eye, ExternalLink, Pencil, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DocumentViewer } from "@/components/documents/DocumentViewer"
 import { EditMetadataModal } from "@/components/documents/EditMetadataModal"
@@ -30,6 +30,16 @@ function formatSize(bytes: number): string {
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00")
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+}
+
+function truncateUrl(url: string): string {
+  try {
+    const u = new URL(url)
+    const path = u.pathname.length > 20 ? u.pathname.slice(0, 20) + "…" : u.pathname
+    return u.hostname + path
+  } catch {
+    return url.length > 40 ? url.slice(0, 40) + "…" : url
+  }
 }
 
 export function DocumentsPanel({
@@ -183,6 +193,19 @@ export function DocumentsPanel({
                   </p>
                   {doc.title && (
                     <p className="text-xs text-muted-foreground truncate">{doc.filename}</p>
+                  )}
+                  {doc.source_url && (
+                    <a
+                      href={doc.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mt-0.5 w-fit"
+                      title={doc.source_url}
+                    >
+                      <ExternalLink className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{truncateUrl(doc.source_url)}</span>
+                    </a>
                   )}
                   <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
                     <span>{formatSize(doc.file_size)}</span>

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from langsmith import traceable
 from app.config import settings
@@ -14,17 +15,40 @@ EMBEDDING_BATCH_SIZE = 100
 CHUNK_INSERT_BATCH_SIZE = 50
 
 
+async def _run_graphrag(document_id: str, user_id: str, sb) -> None:
+    """Background GraphRAG extraction — runs after document is already marked ready."""
+    try:
+        from app.services.graph_extractor import extract_graph_for_document
+        chunk_rows = [
+            {"id": r["id"], "content": r["content"]}
+            for r in sb.table("chunks").select("id,content")
+                         .eq("document_id", document_id).execute().data
+        ]
+        await extract_graph_for_document(document_id, user_id, chunk_rows)
+    except Exception:
+        logger.exception(f"Graph extraction failed for {document_id}")
+        return
+
+    if settings.graphrag_community_rebuild_enabled:
+        try:
+            from app.services.community_builder import build_communities_for_user
+            await build_communities_for_user(user_id)
+        except Exception:
+            logger.exception(f"Community rebuild failed for user {user_id}")
+
+
 @traceable(name="ingest_document")
 async def ingest_document(document_id: str, user_id: str, storage_path: str, file_type: str = "txt"):
     """Background task: download file, chunk, embed, and store vectors."""
     sb = get_service_supabase_client()
 
     try:
-        # Verify document still exists (may have been replaced)
-        doc_check = sb.table("documents").select("id").eq("id", document_id).execute()
+        # Verify document still exists and grab its filename for metadata
+        doc_check = sb.table("documents").select("id,filename").eq("id", document_id).execute()
         if not doc_check.data:
             logger.info(f"Document {document_id} no longer exists, skipping ingestion")
             return
+        filename = doc_check.data[0].get("filename", "")
 
         # Update status → processing, clear any stale chunks from a previous attempt
         sb.table("documents").update({"status": "processing"}).eq(
@@ -55,8 +79,8 @@ async def ingest_document(document_id: str, user_id: str, storage_path: str, fil
             {"content-type": "text/plain; charset=utf-8"},
         )
 
-        # Extract metadata via LLM
-        metadata = await extract_metadata(text)
+        # Extract metadata (pure Python — no LLM)
+        metadata = await extract_metadata(text, filename=filename)
 
         # Chunk text
         chunks = chunk_text(text)
@@ -87,27 +111,7 @@ async def ingest_document(document_id: str, user_id: str, storage_path: str, fil
             ]
             sb.table("chunks").insert(rows).execute()
 
-        # GraphRAG: extract entities and relationships from chunks
-        if settings.graphrag_enabled:
-            try:
-                from app.services.graph_extractor import extract_graph_for_document
-                chunk_rows = [
-                    {"id": r["id"], "content": r["content"]}
-                    for r in sb.table("chunks").select("id,content")
-                                 .eq("document_id", document_id).execute().data
-                ]
-                await extract_graph_for_document(document_id, user_id, chunk_rows)
-            except Exception:
-                logger.exception(f"Graph extraction failed for {document_id}, continuing")
-
-            if settings.graphrag_community_rebuild_enabled:
-                try:
-                    from app.services.community_builder import build_communities_for_user
-                    await build_communities_for_user(user_id)
-                except Exception:
-                    logger.exception(f"Community rebuild failed for user {user_id}, continuing")
-
-        # Update status → ready with metadata
+        # Update status → ready with metadata (before GraphRAG so doc is usable immediately)
         sb.table("documents").update(
             {
                 "status": "ready",
@@ -120,9 +124,11 @@ async def ingest_document(document_id: str, user_id: str, storage_path: str, fil
             }
         ).eq("id", document_id).execute()
 
-        logger.info(
-            f"Document {document_id} ingested: {len(chunks)} chunks"
-        )
+        logger.info(f"Document {document_id} ingested: {len(chunks)} chunks")
+
+        # GraphRAG: fire-and-forget background task (document already marked ready)
+        if settings.graphrag_enabled:
+            asyncio.create_task(_run_graphrag(document_id, user_id, sb))
 
     except Exception as e:
         logger.exception(f"Ingestion failed for document {document_id}")

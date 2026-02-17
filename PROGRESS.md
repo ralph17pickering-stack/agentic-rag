@@ -135,8 +135,8 @@ Track your progress through the masterclass. Update this file as you complete mo
 #### Phase 5 — Ingestion quality upgrades (chunking + enrichment)
 
 - [x] **Pre-chunk cleaning (minimal):** Normalise whitespace; remove obvious boilerplate; preserve meaningful structure.
-- [ ] **Structure-preserving reformat:** Reformat tables/lists so they remain useful post-embedding (table→markdown, keep headers).
-- [ ] **Boundary-aware chunking:** Chunking respects headings/sections; keep headings attached; keep tables whole.
+- [x] **Structure-preserving reformat:** Reformat tables/lists so they remain useful post-embedding (table→markdown, keep headers).
+- [x] **Boundary-aware chunking:** Chunking respects headings/sections; keep headings attached; keep tables whole.
 - [ ] **Chunk metadata schema:** Add per-chunk fields (summary, keywords, hypothetical questions) + keywords table.
 - [ ] **Chunk enrichment pipeline:** For each chunk: generate summary, extract/store keywords, generate hypothetical questions.
 

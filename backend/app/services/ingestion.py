@@ -26,10 +26,11 @@ async def ingest_document(document_id: str, user_id: str, storage_path: str, fil
             logger.info(f"Document {document_id} no longer exists, skipping ingestion")
             return
 
-        # Update status → processing
+        # Update status → processing, clear any stale chunks from a previous attempt
         sb.table("documents").update({"status": "processing"}).eq(
             "id", document_id
         ).execute()
+        sb.table("chunks").delete().eq("document_id", document_id).execute()
 
         # Download file from Supabase Storage
         file_bytes = sb.storage.from_("documents").download(storage_path)
@@ -42,8 +43,12 @@ async def ingest_document(document_id: str, user_id: str, storage_path: str, fil
             ).eq("id", document_id).execute()
             return
 
-        # Upload extracted text to Storage
+        # Upload extracted text to Storage (remove first to handle re-ingestion)
         extracted_path = f"{user_id}/{document_id}_extracted.txt"
+        try:
+            sb.storage.from_("documents").remove([extracted_path])
+        except Exception:
+            pass  # File didn't exist yet — that's fine
         sb.storage.from_("documents").upload(
             extracted_path,
             text.encode("utf-8"),

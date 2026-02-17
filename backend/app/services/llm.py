@@ -1,13 +1,13 @@
 import json
 import re
 from collections.abc import AsyncIterator, Callable, Awaitable
-from dataclasses import dataclass, field
 from typing import Any
 
 from langsmith import traceable
 from langsmith.wrappers import wrap_openai
 from openai import AsyncOpenAI
 from app.config import settings
+from app.tools._registry import ToolContext, ToolEvent
 
 client = wrap_openai(
     AsyncOpenAI(
@@ -15,9 +15,6 @@ client = wrap_openai(
         api_key=settings.llm_api_key,
     )
 )
-
-# Type alias for the retrieval callback
-RetrieveFn = Callable[..., Awaitable[list[dict]]]
 
 
 def strip_thinking(text: str) -> str:
@@ -195,24 +192,6 @@ def get_tools(has_documents: bool) -> list[dict]:
     if settings.graphrag_enabled and has_documents:
         tools.append(GRAPH_SEARCH_TOOL)
     return tools
-
-
-# --- ToolContext ---
-
-@dataclass
-class ToolContext:
-    retrieve_fn: RetrieveFn | None = None
-    user_token: str = ""
-    user_id: str = ""
-    has_documents: bool = False
-
-
-# --- ToolEvent (non-token events yielded from stream) ---
-
-@dataclass
-class ToolEvent:
-    tool_name: str
-    data: Any
 
 
 # --- Helpers ---

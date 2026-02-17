@@ -75,28 +75,61 @@ def _format_chunks(chunks: list[dict]) -> str:
 
 
 def _parse_text_tool_calls(content: str) -> list[dict] | None:
-    """Parse tool calls formatted as text by local LLMs.
+    """Parse tool calls emitted as text by local LLMs.
 
-    Detects patterns like:
-        <function=web_search>
-        <parameter=query>some query</parameter>
-        </function>
+    Handles three formats:
+      1. <function=name><parameter=k>v</parameter></function>
+      2. <tool_call>{"name": "...", "arguments": {...}}</tool_call>
+      3. Bare JSON array: [{"name": "...", "arguments": {...}}]
     """
-    pattern = r"<function=(\w+)>(.*?)</function>"
-    matches = re.findall(pattern, content, re.DOTALL)
-    if not matches:
+    if not content:
         return None
 
-    tool_calls = []
-    for func_name, body in matches:
-        params = {}
-        param_pattern = r"<parameter=(\w+)>(.*?)</parameter>"
-        param_matches = re.findall(param_pattern, body, re.DOTALL)
-        for param_name, param_value in param_matches:
-            params[param_name] = param_value.strip()
-        tool_calls.append({"name": func_name, "arguments": params})
+    # --- Format 1: <function=...> ---
+    f1_matches = re.findall(r"<function=(\w+)>(.*?)</function>", content, re.DOTALL)
+    if f1_matches:
+        tool_calls = []
+        for func_name, body in f1_matches:
+            params = {}
+            for param_name, param_value in re.findall(r"<parameter=(\w+)>(.*?)</parameter>", body, re.DOTALL):
+                params[param_name] = param_value.strip()
+            tool_calls.append({"name": func_name, "arguments": params})
+        return tool_calls if tool_calls else None
 
-    return tool_calls if tool_calls else None
+    # --- Format 2: <tool_call>JSON</tool_call> ---
+    f2_matches = re.findall(r"<tool_call>\s*(.*?)\s*</tool_call>", content, re.DOTALL)
+    if f2_matches:
+        tool_calls = []
+        for raw_json in f2_matches:
+            try:
+                data = json.loads(raw_json)
+                if isinstance(data, dict) and "name" in data:
+                    tool_calls.append({
+                        "name": data["name"],
+                        "arguments": data.get("arguments", data.get("parameters", {})),
+                    })
+            except (json.JSONDecodeError, KeyError):
+                continue
+        return tool_calls if tool_calls else None
+
+    # --- Format 3: bare JSON array (strip optional code fence) ---
+    stripped = content.strip()
+    if stripped.startswith("```"):
+        stripped = re.sub(r"^```[a-z]*\n?", "", stripped).rstrip("`").strip()
+    if stripped.startswith("["):
+        try:
+            data = json.loads(stripped)
+            if isinstance(data, list):
+                tool_calls = [
+                    {"name": item["name"], "arguments": item.get("arguments", {})}
+                    for item in data
+                    if isinstance(item, dict) and "name" in item
+                ]
+                return tool_calls if tool_calls else None
+        except (json.JSONDecodeError, KeyError):
+            pass
+
+    return None
 
 
 async def _execute_tool(

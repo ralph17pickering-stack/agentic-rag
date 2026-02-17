@@ -345,3 +345,50 @@ The delete button was confirmed in the DOM via accessibility snapshot (`button "
 ### Multiple Vite Dev Servers Accumulate Across Sessions
 
 Running `npm run dev` multiple times without stopping previous instances creates zombie Vite processes, each claiming incrementing ports (5173, 5174, …5184+). All instances watch the same source files and pick up changes, but the proliferation wastes memory. Clean up with `pkill -f vite` before starting a new dev session.
+
+---
+
+## Session: Ingestion Pipeline Optimisation + Tool Registry
+
+### Qwen3-Thinking Emits `<think>` Blocks Before Structured Output
+
+**Qwen3 (and similar reasoning models) wrap chain-of-thought in `<think>...</think>` before producing their actual output.** This breaks any code that calls `json.loads()` directly on the response — the parser sees `<think>` and immediately fails with `Expecting value: line 1 column 1`.
+
+**Fix:** Strip thinking blocks before parsing with `re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()`. Also send `/no_think` as a system message (Qwen3-specific directive) to suppress CoT entirely for structured output tasks where reasoning is not needed.
+
+### Local LLMs Use Multiple Text-Format Tool Call Syntaxes
+
+**The OpenAI `tool_calls` API field is not the only way local LLMs signal tool use.** Three formats are common:
+1. `<function=name><parameter=k>v</parameter></function>` — hermes/chatml style
+2. `<tool_call>{"name": "...", "arguments": {...}}</tool_call>` — Qwen3 native
+3. `[{"name": "...", "arguments": {...}}]` — bare JSON array
+
+A parser that handles only one format will silently fail for models using another, causing the model's response to render as raw text in the chat. Always implement all three formats and guard Format 3 against false positives (any JSON object with a `"name"` key) by checking against the set of registered tool names.
+
+### Replace LLM Calls With Python Libraries Where Intelligence Is Not Required
+
+**Metadata extraction (title, summary, topics, date) does not require an LLM.** Using an LLM for these tasks made ingestion slow (multiple round-trips to an 80B model) and fragile (thinking tokens, JSON parse failures). Python replacements:
+
+- **Title:** First `#` heading → first non-blank line → filename stem (pure string ops)
+- **Topics:** [YAKE](https://github.com/LIAAD/yake) — pure Python, no model download, top-5 keyphrases in milliseconds
+- **Date:** Regex matching ISO / month-name / DD-MM-YYYY formats
+- **Summary:** First 2–3 sentences ≥20 chars that aren't headings
+
+Reserve LLM calls for tasks requiring genuine reasoning.
+
+### Decouple Long-Running Background Work From Document Readiness
+
+**Fire-and-forget `asyncio.create_task()` is the right pattern for work that enriches a document after it's already usable.** GraphRAG extraction (35+ LLM calls for a 175-chunk document) was blocking the document from becoming `ready` for minutes. The fix: mark the document `ready` immediately after embedding is done, then launch GraphRAG as a background task with `asyncio.create_task(_run_graphrag(...))`. The document is searchable instantly; the knowledge graph appears later.
+
+### File-Based Autodiscovery for Plugin Registries
+
+**For extensible plugin systems, glob-based autodiscovery is simpler and more maintainable than explicit registration.** The pattern:
+1. Each plugin is a `.py` file in a designated directory exposing a module-level `plugin` variable
+2. `_registry.py` globs `*.py`, skips `_*.py`, imports each, and collects `plugin` instances
+3. Startup logs `"Loaded tool: <name>"` or `"Failed to load: ..."` for immediate visibility
+
+Circular import risk: shared types (`ToolContext`, `ToolEvent`) must live in the registry module (not in the module that imports from it), so tool files can import types without back-importing the consuming service.
+
+### `ToolContext` Must Be Passed In Full — Never Reconstruct Partial Copies
+
+**When a function needs to evaluate tool availability, pass the full `ToolContext` rather than extracting individual fields.** `get_tools(has_documents: bool)` constructed a partial `ToolContext(has_documents=has_documents)`, silently discarding `user_id` and `user_token`. Any future `enabled` lambda checking user-specific state would have silently misbehaved. The fix: `get_tools(ctx: ToolContext)` — accept and forward the full context.

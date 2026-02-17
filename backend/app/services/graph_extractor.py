@@ -8,6 +8,7 @@ from pydantic import BaseModel, ValidationError
 
 from app.config import settings
 from app.services.supabase import get_service_supabase_client
+from app.services.llm import strip_thinking
 
 logger = logging.getLogger(__name__)
 
@@ -86,10 +87,16 @@ async def _extract_graph_batch(
     try:
         response = await _client.chat.completions.create(
             model=settings.llm_model,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": "/no_think"},
+                {"role": "user", "content": prompt},
+            ],
             temperature=0,
         )
         raw = response.choices[0].message.content or ""
+
+        # Strip <think>...</think> CoT blocks (Qwen3-Thinking and similar models)
+        raw = strip_thinking(raw)
 
         # Strip markdown code fences if present
         raw = raw.strip()

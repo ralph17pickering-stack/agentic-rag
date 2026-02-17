@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     topic_consolidation_interval_hours: float = 24
 
     graphrag_enabled: bool = True
-    graphrag_extraction_batch_size: int = 5
+    graphrag_extraction_batch_size: int = 10
     graphrag_entity_types: str = "PERSON,ORGANIZATION,LOCATION,CONCEPT,EVENT,PRODUCT"
     graphrag_community_min_size: int = 3
     graphrag_community_chunks_per_summary: int = 5

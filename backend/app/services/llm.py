@@ -19,6 +19,11 @@ client = wrap_openai(
 # Type alias for the retrieval callback
 RetrieveFn = Callable[..., Awaitable[list[dict]]]
 
+
+def strip_thinking(text: str) -> str:
+    """Remove <think>...</think> CoT blocks produced by reasoning models (e.g. Qwen3-Thinking)."""
+    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+
 SYSTEM_PROMPT = "You are a helpful assistant."
 
 SYSTEM_PROMPT_WITH_TOOLS = (

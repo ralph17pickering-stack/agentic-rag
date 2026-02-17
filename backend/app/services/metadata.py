@@ -5,13 +5,14 @@ from datetime import date
 from pydantic import BaseModel
 from langsmith import traceable
 
-from app.services.llm import client
+from app.services.llm import client, strip_thinking
 from app.services.chunker import encoding
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-EXTRACTION_PROMPT = """Extract metadata from this document. Return JSON with these fields:
+EXTRACTION_PROMPT = """/no_think
+Extract metadata from this document. Return JSON with these fields:
 - "title": a concise descriptive title for the document
 - "summary": a 1-2 sentence summary of the document's content
 - "topics": a list of 1-5 topic tags (lowercase, short phrases)
@@ -43,12 +44,12 @@ async def extract_metadata(text: str) -> DocumentMetadata:
             ],
             response_format={"type": "json_object"},
         )
-        raw = response.choices[0].message.content
+        raw = strip_thinking(response.choices[0].message.content or "")
         return DocumentMetadata.model_validate_json(raw)
     except Exception:
         # Try parsing JSON from free-form response as fallback
         try:
-            raw = response.choices[0].message.content
+            raw = strip_thinking(response.choices[0].message.content or "")
             # Try to find JSON in the response
             start = raw.find("{")
             end = raw.rfind("}") + 1

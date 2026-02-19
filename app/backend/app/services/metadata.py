@@ -3,7 +3,7 @@ Python-only metadata extraction — no LLM required.
 
 - title:         first markdown heading, or first non-blank line, or filename stem
 - summary:       first 2–3 substantial sentences
-- topics:        top-5 keyphrases via YAKE (no model download)
+- topics:        top keyphrases via YAKE (no model download), blocklist-filtered
 - document_date: first recognisable date found via regex
 """
 import re
@@ -14,6 +14,8 @@ from pathlib import Path
 import yake
 from pydantic import BaseModel
 from langsmith import traceable
+
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +36,7 @@ class DocumentMetadata(BaseModel):
 # n=2: up to 2-word keyphrases; top=5: return 5 results
 # ---------------------------------------------------------------------------
 
-_kw_extractor = yake.KeywordExtractor(lan="en", n=2, dedupLim=0.7, top=5)
+_kw_extractor = yake.KeywordExtractor(lan="en", n=2, dedupLim=0.7, top=settings.tag_candidates)
 
 
 # ---------------------------------------------------------------------------
@@ -72,10 +74,10 @@ def _extract_summary(text: str) -> str:
 
 
 def _extract_topics(text: str) -> list[str]:
-    """Top-5 keyphrases from the first 5 000 chars via YAKE."""
+    """Top keyphrases from the first 5 000 chars via YAKE."""
     try:
         keywords = _kw_extractor.extract_keywords(text[:5000])
-        return [kw.lower() for kw, _score in keywords[:5]]
+        return [kw.lower() for kw, _score in keywords]
     except Exception as exc:
         logger.warning("Keyword extraction failed: %s", exc)
         return []
@@ -146,11 +148,19 @@ def _extract_date(text: str) -> date | None:
 # ---------------------------------------------------------------------------
 
 @traceable(name="extract_metadata")
-async def extract_metadata(text: str, filename: str = "") -> DocumentMetadata:
+async def extract_metadata(
+    text: str,
+    filename: str = "",
+    blocked_tags: set[str] | None = None,
+) -> DocumentMetadata:
     """Extract document metadata using Python NLP — no LLM needed."""
+    topics = _extract_topics(text)
+    if blocked_tags:
+        topics = [t for t in topics if t not in blocked_tags]
+    topics = topics[:settings.tag_max_per_document]
     return DocumentMetadata(
         title=_extract_title(text, filename),
         summary=_extract_summary(text),
-        topics=_extract_topics(text),
+        topics=topics,
         document_date=_extract_date(text),
     )

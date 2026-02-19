@@ -435,3 +435,30 @@ useEffect(() => {
 ```
 
 The effect only re-runs when `hasTransientDocs` flips (boolean `Object.is` comparison). The interval keeps running between polls without restarting. Cleanup fires automatically when the condition becomes false.
+
+---
+
+## Session: Phase 4 — Agentic Tag Tool
+
+### Stateless Dual-Call Pattern for Preview+Execute LLM Tools
+
+**The LLM passes identical parameters on both calls; the tool controls scope via `top_k` internally.**
+
+When a tool needs a preview-first workflow (dry_run → confirm → execute), avoid having the LLM collect and re-pass large intermediate state (e.g., doc_ids). Instead, let the tool re-run the same query internally using a larger `top_k` on the execute call:
+
+- `dry_run=true` → `top_k=10` (fast preview, sample titles)
+- `dry_run=false` → `top_k=10_000` (effectively unlimited, tag all matches)
+
+This scales from 2 to 20,000 documents with no LLM context overhead and no risk of the LLM truncating or mishandling a large ID list. The LLM only needs to decide which operation and parameters; the tool handles all document discovery.
+
+### SECURITY INVOKER RPCs for User-Scoped Mutations
+
+**Tag management RPCs use `SECURITY INVOKER` so they run as the calling user and inherit RLS automatically.**
+
+There is no need to filter by `user_id` inside the function body — the calling user's RLS policy on the `documents` table handles that. The function just does the update; RLS enforces ownership. This pattern applies to any write RPC that should be user-scoped without extra boilerplate.
+
+### db/ Directory in .gitignore — Force-Add Migration Files
+
+**Migration files under `db/` require `git add -f` because `db/` is in `.gitignore`.**
+
+When committing new SQL migrations, use `git add -f db/migrations/<file>.sql`. Consider adding `!db/migrations/` as a `.gitignore` exception if the project accumulates many migrations.

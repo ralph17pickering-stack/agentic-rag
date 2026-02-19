@@ -37,6 +37,13 @@ class Settings(BaseSettings):
     topic_consolidation_enabled: bool = True
     topic_consolidation_interval_hours: float = 24
 
+    tag_candidates: int = 15                        # YAKE candidates before filtering
+    tag_max_per_document: int = 8                   # max tags kept after blocklist filter
+    tag_quality_sweep_enabled: bool = True
+    tag_quality_sweep_interval_hours: float = 12
+    tag_quality_sweep_sample_size: int = 10
+    tag_quality_auto_block_threshold: int = 3       # auto-block if removed from N+ docs in one sweep
+
     graphrag_enabled: bool = True
     graphrag_extraction_batch_size: int = 10
     graphrag_entity_types: str = "PERSON,ORGANIZATION,LOCATION,CONCEPT,EVENT,PRODUCT"
@@ -51,7 +58,7 @@ class Settings(BaseSettings):
     langchain_api_key: str = ""
     langchain_project: str = "agentic-rag"
 
-    model_config = {"env_file": str(_ENV_FILE)}
+    model_config = {"env_file": str(_ENV_FILE), "extra": "ignore"}
 
 
 settings = Settings()

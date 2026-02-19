@@ -123,13 +123,14 @@ Track your progress through the masterclass. Update this file as you complete mo
 
 - [x] **Documents readable:** RAG documents viewable in readable format (not necessarily original file).
 - [x] **Web documents readable:** Web searches saved/imported into the RAG are readable and include the original link.
-- [ ] **KB viewer polish:** Unified viewer experience for file docs + web docs (title, source link, extracted text, metadata).
+- [x] **KB viewer polish:** Unified viewer experience for file docs + web docs (title, source link, extracted text, metadata).
 
 #### Phase 4 — Metadata curation + governance
 
 * [x] **Metadata filter UX:** Metadata category displayed below files is clickable to filter by category.
 * [x] **Topic consolidation:** Background task merges near-duplicate topic tags to canonical topics.
 - [x] **Edit metadata (UI):** Ability to edit document metadata in the UI (start with title/topics; expand later if needed).
+- [x] **Agentic tag tool** AI tool calls through the chat interface to permit deleting tags, searching for docs matching key words and applying tags
 - [ ] **Edit metadata (audit + sync):** Track updated_at/editor; ensure edits flow into retrieval ranking (and any caches).
 
 #### Phase 5 — Ingestion quality upgrades (chunking + enrichment)

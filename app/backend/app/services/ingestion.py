@@ -79,8 +79,12 @@ async def ingest_document(document_id: str, user_id: str, storage_path: str, fil
             {"content-type": "text/plain; charset=utf-8"},
         )
 
+        # Fetch user's blocked tags for filtering
+        blocked_rows = sb.table("blocked_tags").select("tag").eq("user_id", user_id).execute().data
+        blocked_tags = {r["tag"] for r in (blocked_rows or [])}
+
         # Extract metadata (pure Python — no LLM)
-        metadata = await extract_metadata(text, filename=filename)
+        metadata = await extract_metadata(text, filename=filename, blocked_tags=blocked_tags)
 
         # Chunk text
         chunks = chunk_text(text)

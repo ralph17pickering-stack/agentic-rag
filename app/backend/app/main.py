@@ -7,6 +7,7 @@ from app.routers import threads, chat, documents
 from app.services.supabase import get_service_supabase_client
 from app.services.topic_consolidator import consolidate_all_users
 from app.services.community_builder import build_communities_for_all_users
+from app.services.tag_quality_sweep import sweep_random_user
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,17 @@ async def _topic_consolidation_loop():
             logger.exception("Topic consolidation loop error")
 
 
+async def _tag_quality_sweep_loop():
+    interval = settings.tag_quality_sweep_interval_hours * 3600
+    while True:
+        await asyncio.sleep(interval)
+        logger.info("Running periodic tag quality sweep")
+        try:
+            await sweep_random_user()
+        except Exception:
+            logger.exception("Tag quality sweep loop error")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Create documents storage bucket if it doesn't exist
@@ -52,6 +64,9 @@ async def lifespan(app: FastAPI):
 
     if settings.graphrag_community_rebuild_enabled:
         asyncio.create_task(_community_rebuild_loop())
+
+    if settings.tag_quality_sweep_enabled:
+        asyncio.create_task(_tag_quality_sweep_loop())
 
     yield
 

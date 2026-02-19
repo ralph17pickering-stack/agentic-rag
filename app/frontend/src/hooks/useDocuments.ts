@@ -10,15 +10,15 @@ export function useDocuments() {
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
 
-  const fetchDocuments = useCallback(async () => {
-    setLoading(true)
+  const fetchDocuments = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const res = await apiFetch("/api/documents")
       if (res.ok) {
         setDocuments(await res.json())
       }
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
@@ -85,24 +85,47 @@ export function useDocuments() {
 
   // Supabase Realtime subscription for document status updates
   useEffect(() => {
-    const channel = supabase
-      .channel("documents-status")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "documents" },
-        (payload) => {
-          const updated = payload.new as Document
-          setDocuments(prev =>
-            prev.map(d => (d.id === updated.id ? updated : d))
-          )
-        }
-      )
-      .subscribe()
+    let channel: ReturnType<typeof supabase.channel> | null = null
+    let active = true
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!active || !session) return
+
+      channel = supabase
+        .channel(`documents-status-${session.user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "documents",
+            filter: `user_id=eq.${session.user.id}`,
+          },
+          (payload) => {
+            const updated = payload.new as Document
+            setDocuments(prev =>
+              prev.map(d => (d.id === updated.id ? updated : d))
+            )
+          }
+        )
+        .subscribe()
+    })
 
     return () => {
-      supabase.removeChannel(channel)
+      active = false
+      if (channel) supabase.removeChannel(channel)
     }
   }, [])
+
+  // Poll every 3s while any document is in a transient state (Realtime fallback)
+  const hasTransientDocs = documents.some(
+    d => d.status === "pending" || d.status === "processing"
+  )
+  useEffect(() => {
+    if (!hasTransientDocs) return
+    const id = setInterval(() => fetchDocuments(true), 3000)
+    return () => clearInterval(id)
+  }, [hasTransientDocs, fetchDocuments])
 
   return { documents, loading, uploading, fetchDocuments, uploadDocument, deleteDocument, updateDocument }
 }

@@ -392,3 +392,46 @@ Circular import risk: shared types (`ToolContext`, `ToolEvent`) must live in the
 ### `ToolContext` Must Be Passed In Full — Never Reconstruct Partial Copies
 
 **When a function needs to evaluate tool availability, pass the full `ToolContext` rather than extracting individual fields.** `get_tools(has_documents: bool)` constructed a partial `ToolContext(has_documents=has_documents)`, silently discarding `user_id` and `user_token`. Any future `enabled` lambda checking user-specific state would have silently misbehaved. The fix: `get_tools(ctx: ToolContext)` — accept and forward the full context.
+
+---
+
+## Session: Document Status Realtime Bug Fix
+
+### Supabase Realtime `postgres_changes` Silently Drops Events for Service-Role Updates
+
+**`postgres_changes` subscriptions with RLS-enabled tables do not reliably deliver events when the update is made via the service role key.**
+
+The ingestion backend uses `get_service_supabase_client()` (service role key) to update document status. This bypasses RLS at the database level. However, Supabase Realtime v2 must check row visibility through RLS before delivering events to subscribers — and this check can fail silently when the service role is the updater, resulting in events that are generated in the WAL but never delivered to the frontend WebSocket.
+
+Adding a `filter: 'user_id=eq.{userId}'` parameter to the subscription helps by letting Realtime match rows by column value directly rather than running a full RLS policy check, but this alone is not sufficient to guarantee delivery in a self-hosted setup.
+
+**Fix:** Add a polling fallback that activates whenever documents are in a transient state (`pending` or `processing`), polling every 3 seconds via the REST API. Stop polling automatically when all documents reach a terminal state (`ready` or `error`). Keep the Realtime subscription in place — if it works it provides immediate updates; if not, polling catches up within 3 seconds.
+
+### Polling Without a Loading Spinner: Use a `silent` Flag
+
+**Background polling should never trigger a loading indicator.** The initial fetch (on mount) should show a spinner; subsequent background polls should not. The clean pattern is an optional `silent = false` parameter on the fetch function that gates the `setLoading` calls:
+
+```typescript
+const fetchDocuments = useCallback(async (silent = false) => {
+  if (!silent) setLoading(true)
+  try { ... }
+  finally { if (!silent) setLoading(false) }
+}, [])
+```
+
+Polling then calls `fetchDocuments(true)`. Backwards-compatible — all existing callers that omit the argument get the original behaviour.
+
+### Derived Boolean as `useEffect` Dependency for Conditional Polling
+
+**To run an interval only while a condition is true, derive a boolean from state and use it as the sole dep:**
+
+```typescript
+const hasTransientDocs = documents.some(d => d.status === "pending" || d.status === "processing")
+useEffect(() => {
+  if (!hasTransientDocs) return
+  const id = setInterval(() => fetchDocuments(true), 3000)
+  return () => clearInterval(id)
+}, [hasTransientDocs, fetchDocuments])
+```
+
+The effect only re-runs when `hasTransientDocs` flips (boolean `Object.is` comparison). The interval keeps running between polls without restarting. Cleanup fires automatically when the condition becomes false.

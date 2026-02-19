@@ -13,11 +13,11 @@
 ### Task 1: Add `CitationSource` type and update `Message` type
 
 **Files:**
-- Modify: `frontend/src/types/index.ts`
+- Modify: `app/frontend/src/types/index.ts`
 
 **Step 1: Add the type**
 
-Open `frontend/src/types/index.ts` and make these two changes:
+Open `app/frontend/src/types/index.ts` and make these two changes:
 
 1. Add `CitationSource` interface after `WebResult`:
 
@@ -49,7 +49,7 @@ Expected: no errors (no code is using the new type yet)
 **Step 3: Commit**
 
 ```bash
-git add frontend/src/types/index.ts
+git add app/frontend/src/types/index.ts
 git commit -m "feat: add CitationSource type and used_sources to Message"
 ```
 
@@ -58,7 +58,7 @@ git commit -m "feat: add CitationSource type and used_sources to Message"
 ### Task 2: Update `useChat` to track `used_sources`
 
 **Files:**
-- Modify: `frontend/src/hooks/useChat.ts`
+- Modify: `app/frontend/src/hooks/useChat.ts`
 
 **Step 1: Add `usedSources` state**
 
@@ -149,7 +149,7 @@ Expected: no errors
 **Step 8: Commit**
 
 ```bash
-git add frontend/src/hooks/useChat.ts
+git add app/frontend/src/hooks/useChat.ts
 git commit -m "feat: track used_sources in useChat — SSE + history restore"
 ```
 
@@ -158,7 +158,7 @@ git commit -m "feat: track used_sources in useChat — SSE + history restore"
 ### Task 3: Extend `RightPanel` with mode, two handles, and citations content
 
 **Files:**
-- Modify: `frontend/src/components/chat/RightPanel.tsx`
+- Modify: `app/frontend/src/components/chat/RightPanel.tsx`
 
 **Step 1: Update imports**
 
@@ -354,7 +354,7 @@ Expected: errors about `onOpen` call signature mismatch in `ChatLayout.tsx` (tha
 **Step 8: Commit**
 
 ```bash
-git add frontend/src/components/chat/RightPanel.tsx
+git add app/frontend/src/components/chat/RightPanel.tsx
 git commit -m "feat: citations panel — mode state, dual edge handles, citations content"
 ```
 
@@ -363,7 +363,7 @@ git commit -m "feat: citations panel — mode state, dual edge handles, citation
 ### Task 4: Wire `usedSources` into `ChatLayout` and fix `onOpen` call site
 
 **Files:**
-- Modify: `frontend/src/components/chat/ChatLayout.tsx`
+- Modify: `app/frontend/src/components/chat/ChatLayout.tsx`
 
 **Step 1: Destructure `usedSources` from `useChat`**
 
@@ -440,7 +440,7 @@ Expected: no errors
 **Step 6: Commit**
 
 ```bash
-git add frontend/src/components/chat/ChatLayout.tsx
+git add app/frontend/src/components/chat/ChatLayout.tsx
 git commit -m "feat: wire usedSources into ChatLayout — auto-open citations panel"
 ```
 
@@ -452,7 +452,7 @@ git commit -m "feat: wire usedSources into ChatLayout — auto-open citations pa
 
 ```bash
 # Terminal 1: backend
-cd /home/ralph/dev/agentic-rag && source backend/venv/bin/activate && uvicorn app.main:app --reload --port 8001 --app-dir backend
+cd /home/ralph/dev/agentic-rag && source app/backapp/frontend/venv/bin/activate && uvicorn app.main:app --reload --port 8001 --app-dir backend
 
 # Terminal 2: frontend
 cd /home/ralph/dev/agentic-rag/frontend && npm run dev

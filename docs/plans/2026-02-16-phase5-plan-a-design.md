@@ -58,8 +58,8 @@ After extraction produces markdown-structured text, the chunker detects heading 
 
 | File | Change |
 |------|--------|
-| `backend/app/services/extraction.py` | Rewrite `_extract_html` and `_extract_docx` |
-| `backend/app/services/chunker.py` | Add heading-boundary logic; keep token fallback |
+| `app/backapp/frontend/app/services/extraction.py` | Rewrite `_extract_html` and `_extract_docx` |
+| `app/backapp/frontend/app/services/chunker.py` | Add heading-boundary logic; keep token fallback |
 | `tests/unit/services/test_extraction.py` | New — unit tests for HTML/DOCX extraction |
 | `tests/unit/services/test_chunker.py` | New — unit tests for boundary-aware chunking |
 

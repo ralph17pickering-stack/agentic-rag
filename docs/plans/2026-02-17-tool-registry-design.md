@@ -4,7 +4,7 @@
 
 ## Goal
 
-Replace the monolithic tool definitions and dispatch in `llm.py` with a file-based autodiscovery registry. Adding a new tool requires dropping one file into `backend/app/tools/` — nothing else changes. Also fix text-format tool call parsing to handle all common local LLM output formats.
+Replace the monolithic tool definitions and dispatch in `llm.py` with a file-based autodiscovery registry. Adding a new tool requires dropping one file into `app/backapp/frontend/app/tools/` — nothing else changes. Also fix text-format tool call parsing to handle all common local LLM output formats.
 
 ## Context
 
@@ -14,7 +14,7 @@ The existing code has all tool definitions (`RETRIEVE_TOOL`, etc.), availability
 
 ### Plugin Interface
 
-Each tool is a self-contained Python file in `backend/app/tools/`. Files prefixed with `_` are internal. Every tool file exposes a single module-level `plugin: ToolPlugin` variable:
+Each tool is a self-contained Python file in `app/backapp/frontend/app/tools/`. Files prefixed with `_` are internal. Every tool file exposes a single module-level `plugin: ToolPlugin` variable:
 
 ```python
 @dataclass
@@ -48,7 +48,7 @@ async def execute_tool(name, args, ctx, on_status=None) -> str | dict:
 ### Tool Files
 
 ```
-backend/app/tools/
+app/backapp/frontend/app/tools/
   _registry.py                  ← autodiscovery + ToolPlugin/ToolContext/ToolEvent types
   retrieve_documents.py
   query_documents_metadata.py

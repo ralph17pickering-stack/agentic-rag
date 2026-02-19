@@ -50,12 +50,12 @@ git commit -m "feat: add source_url column to documents table"
 ### Task 2: Backend — store and return `source_url`
 
 **Files:**
-- Modify: `backend/app/models/documents.py`
-- Modify: `backend/app/routers/documents.py:303-318`
+- Modify: `app/backapp/frontend/app/models/documents.py`
+- Modify: `app/backapp/frontend/app/routers/documents.py:303-318`
 
 **Step 1: Add `source_url` to `DocumentResponse`**
 
-In `backend/app/models/documents.py`, add one field to `DocumentResponse` after `document_date`:
+In `app/backapp/frontend/app/models/documents.py`, add one field to `DocumentResponse` after `document_date`:
 
 ```python
 source_url: str | None = None
@@ -63,7 +63,7 @@ source_url: str | None = None
 
 **Step 2: Store `source_url` in the `/from-url` insert**
 
-In `backend/app/routers/documents.py`, find the document insert dict inside the `ingest_from_url` function (around line 307). Change:
+In `app/backapp/frontend/app/routers/documents.py`, find the document insert dict inside the `ingest_from_url` function (around line 307). Change:
 
 ```python
         .insert(
@@ -135,7 +135,7 @@ def test_document_response_source_url_defaults_to_none():
 **Step 4: Run the tests**
 
 ```bash
-source backend/venv/bin/activate && python -m pytest tests/unit/models/test_document_response.py -v
+source app/backapp/frontend/venv/bin/activate && python -m pytest tests/unit/models/test_document_response.py -v
 ```
 
 Expected: 2 PASS
@@ -143,7 +143,7 @@ Expected: 2 PASS
 **Step 5: Run full test suite**
 
 ```bash
-source backend/venv/bin/activate && python -m pytest tests/ -v
+source app/backapp/frontend/venv/bin/activate && python -m pytest tests/ -v
 ```
 
 Expected: all pass
@@ -151,7 +151,7 @@ Expected: all pass
 **Step 6: Commit**
 
 ```bash
-git add backend/app/models/documents.py backend/app/routers/documents.py tests/unit/models/test_document_response.py
+git add app/backapp/frontend/app/models/documents.py app/backapp/frontend/app/routers/documents.py tests/unit/models/test_document_response.py
 git commit -m "feat: store and return source_url for web-ingested documents"
 ```
 
@@ -160,11 +160,11 @@ git commit -m "feat: store and return source_url for web-ingested documents"
 ### Task 3: Frontend — add `source_url` to types and wire through
 
 **Files:**
-- Modify: `frontend/src/types/index.ts`
+- Modify: `app/frontend/src/types/index.ts`
 
 **Step 1: Add `source_url` to the `Document` interface**
 
-In `frontend/src/types/index.ts`, inside the `Document` interface add after `document_date`:
+In `app/frontend/src/types/index.ts`, inside the `Document` interface add after `document_date`:
 
 ```typescript
 source_url?: string | null
@@ -181,7 +181,7 @@ Expected: no errors
 **Step 3: Commit**
 
 ```bash
-git add frontend/src/types/index.ts
+git add app/frontend/src/types/index.ts
 git commit -m "feat: add source_url to Document type"
 ```
 
@@ -190,7 +190,7 @@ git commit -m "feat: add source_url to Document type"
 ### Task 4: DocumentViewer — "View original" link in header
 
 **Files:**
-- Modify: `frontend/src/components/documents/DocumentViewer.tsx`
+- Modify: `app/frontend/src/components/documents/DocumentViewer.tsx`
 
 **Current header JSX (lines 57–65):**
 
@@ -260,7 +260,7 @@ Expected: no errors
 **Step 4: Commit**
 
 ```bash
-git add frontend/src/components/documents/DocumentViewer.tsx
+git add app/frontend/src/components/documents/DocumentViewer.tsx
 git commit -m "feat: show 'View original' link in DocumentViewer for web docs"
 ```
 
@@ -269,7 +269,7 @@ git commit -m "feat: show 'View original' link in DocumentViewer for web docs"
 ### Task 5: DocumentsPanel — URL on list card
 
 **Files:**
-- Modify: `frontend/src/components/documents/DocumentsPanel.tsx`
+- Modify: `app/frontend/src/components/documents/DocumentsPanel.tsx`
 
 **Step 1: Add `ExternalLink` to imports**
 
@@ -331,7 +331,7 @@ Expected: no errors
 **Step 5: Commit**
 
 ```bash
-git add frontend/src/components/documents/DocumentsPanel.tsx
+git add app/frontend/src/components/documents/DocumentsPanel.tsx
 git commit -m "feat: show source URL on document list card for web docs"
 ```
 

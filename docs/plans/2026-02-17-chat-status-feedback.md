@@ -13,21 +13,21 @@
 ## Context
 
 Key files (read before making any change):
-- `backend/app/services/llm.py` — async generator, emits `ToolEvent` objects. The tool execution loop has **two paths**:
+- `app/backapp/frontend/app/services/llm.py` — async generator, emits `ToolEvent` objects. The tool execution loop has **two paths**:
   - **Text tool calls path** (lines 180–203): for local LLMs that emit tool calls as text
   - **Native tool calls path** (lines 215–246): for OpenAI-compatible APIs
   Both paths must emit `tool_start` before `_execute_tool`.
-- `backend/app/routers/chat.py` — `event_generator()` (lines 80–102) fans out `ToolEvent` objects to SSE payloads.
-- `frontend/src/hooks/useChat.ts` — SSE consumer. State: `deepAnalysisPhase`, `usedDeepAnalysis`.
-- `frontend/src/components/chat/MessageArea.tsx` — renders the status bubble (line 61).
-- `frontend/src/components/chat/ChatLayout.tsx` — passes `deepAnalysisPhase` prop to `MessageArea` (lines 145, 236).
+- `app/backapp/frontend/app/routers/chat.py` — `event_generator()` (lines 80–102) fans out `ToolEvent` objects to SSE payloads.
+- `app/frontend/src/hooks/useChat.ts` — SSE consumer. State: `deepAnalysisPhase`, `usedDeepAnalysis`.
+- `app/frontend/src/components/chat/MessageArea.tsx` — renders the status bubble (line 61).
+- `app/frontend/src/components/chat/ChatLayout.tsx` — passes `deepAnalysisPhase` prop to `MessageArea` (lines 145, 236).
 
 ---
 
 ## Task 1: Emit `tool_start` ToolEvent in llm.py
 
 **Files:**
-- Modify: `backend/app/services/llm.py`
+- Modify: `app/backapp/frontend/app/services/llm.py`
 
 No tests for this task — it's an async generator tested via integration. Verify by watching backend logs / SSE stream in Task 5.
 
@@ -115,7 +115,7 @@ yield ToolEvent(tool_name="retrieve_documents", data={"sources": sources, "query
 
 ```bash
 cd /home/ralph/dev/agentic-rag
-git add backend/app/services/llm.py
+git add app/backapp/frontend/app/services/llm.py
 git commit -m "feat: emit tool_start ToolEvent before each tool call"
 ```
 
@@ -124,7 +124,7 @@ git commit -m "feat: emit tool_start ToolEvent before each tool call"
 ## Task 2: Handle `tool_start` in chat.py + pass query through result events
 
 **Files:**
-- Modify: `backend/app/routers/chat.py`
+- Modify: `app/backapp/frontend/app/routers/chat.py`
 
 **Step 1: Add `tool_start` handler in `event_generator()`**
 
@@ -173,7 +173,7 @@ Expected: `OK`
 **Step 5: Commit**
 
 ```bash
-git add backend/app/routers/chat.py
+git add app/backapp/frontend/app/routers/chat.py
 git commit -m "feat: forward tool_start SSE events and add query to result payloads"
 ```
 
@@ -184,12 +184,12 @@ git commit -m "feat: forward tool_start SSE events and add query to result paylo
 This is the only pure function worth unit testing. It maps raw SSE `tool_start` / result events to human-readable status strings.
 
 **Files:**
-- Create: `frontend/src/lib/toolStatus.ts`
-- Create: `frontend/src/lib/toolStatus.test.ts`
+- Create: `app/frontend/src/lib/toolStatus.ts`
+- Create: `app/frontend/src/lib/toolStatus.test.ts`
 
 **Step 1: Write the failing tests**
 
-Create `frontend/src/lib/toolStatus.test.ts`:
+Create `app/frontend/src/lib/toolStatus.test.ts`:
 
 ```typescript
 import { describe, it, expect } from "vitest"
@@ -266,7 +266,7 @@ Expected: FAIL — "Cannot find module './toolStatus'"
 
 **Step 3: Implement `toolStatus.ts`**
 
-Create `frontend/src/lib/toolStatus.ts`:
+Create `app/frontend/src/lib/toolStatus.ts`:
 
 ```typescript
 const MAX_QUERY_LEN = 60
@@ -333,7 +333,7 @@ Expected: All tests PASS
 **Step 5: Commit**
 
 ```bash
-git add frontend/src/lib/toolStatus.ts frontend/src/lib/toolStatus.test.ts
+git add app/frontend/src/lib/toolStatus.ts app/frontend/src/lib/toolStatus.test.ts
 git commit -m "feat: add toolStatus formatter with tests"
 ```
 
@@ -342,7 +342,7 @@ git commit -m "feat: add toolStatus formatter with tests"
 ## Task 4: Update `useChat.ts` — replace `deepAnalysisPhase` with `currentStatus`
 
 **Files:**
-- Modify: `frontend/src/hooks/useChat.ts`
+- Modify: `app/frontend/src/hooks/useChat.ts`
 
 **Step 1: Replace state declaration (line 14)**
 
@@ -446,7 +446,7 @@ Expected: No errors (or only pre-existing unrelated errors).
 **Step 8: Commit**
 
 ```bash
-git add frontend/src/hooks/useChat.ts
+git add app/frontend/src/hooks/useChat.ts
 git commit -m "feat: replace deepAnalysisPhase with currentStatus in useChat"
 ```
 
@@ -455,7 +455,7 @@ git commit -m "feat: replace deepAnalysisPhase with currentStatus in useChat"
 ## Task 5: Update `MessageArea.tsx` — render `currentStatus`
 
 **Files:**
-- Modify: `frontend/src/components/chat/MessageArea.tsx`
+- Modify: `app/frontend/src/components/chat/MessageArea.tsx`
 
 **Step 1: Update props interface (lines 4–10)**
 
@@ -518,7 +518,7 @@ npx tsc --noEmit 2>&1 | head -30
 **Step 5: Commit**
 
 ```bash
-git add frontend/src/components/chat/MessageArea.tsx
+git add app/frontend/src/components/chat/MessageArea.tsx
 git commit -m "feat: render currentStatus in MessageArea status bubble"
 ```
 
@@ -527,7 +527,7 @@ git commit -m "feat: render currentStatus in MessageArea status bubble"
 ## Task 6: Update `ChatLayout.tsx` — rename prop references
 
 **Files:**
-- Modify: `frontend/src/components/chat/ChatLayout.tsx`
+- Modify: `app/frontend/src/components/chat/ChatLayout.tsx`
 
 **Step 1: Update destructuring from `useChat` (line 40)**
 
@@ -560,7 +560,7 @@ Expected: No errors.
 **Step 4: Commit**
 
 ```bash
-git add frontend/src/components/chat/ChatLayout.tsx
+git add app/frontend/src/components/chat/ChatLayout.tsx
 git commit -m "feat: wire currentStatus prop through ChatLayout"
 ```
 

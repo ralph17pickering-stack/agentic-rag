@@ -1,16 +1,20 @@
 # Python
-backend/venv/
+app/backend/venv/
 __pycache__/
 *.pyc
+*.pyo
+.pytest_cache/
 
 # Node
-frontend/node_modules/
-frontend/dist/
+app/frontend/node_modules/
+app/frontend/dist/
 
-# Environment
+# Environment / secrets
 .env
-backend/.env
-frontend/.env
+app/.env
+app/backend/.env
+app/frontend/.env
+db/.env
 
 # IDE
 .vscode/
@@ -18,3 +22,14 @@ frontend/.env
 
 # OS
 .DS_Store
+
+# Docker / infrastructure (not tracked in git)
+db/
+embed/
+qwen3/
+
+# Playwright
+app/.playwright-mcp/
+
+# Build artefacts
+app/frontend/.vite/

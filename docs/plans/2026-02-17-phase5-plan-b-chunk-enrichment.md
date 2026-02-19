@@ -174,7 +174,7 @@ git commit -m "feat: migration 019 — chunk enrichment columns, keywords table,
 ### Task 2: Chunk enricher service + unit tests
 
 **Files:**
-- Create: `backend/app/services/chunk_enricher.py`
+- Create: `app/backapp/frontend/app/services/chunk_enricher.py`
 - Create: `tests/unit/services/test_chunk_enricher.py`
 
 **Step 1: Create `tests/unit/services/test_chunk_enricher.py`**
@@ -251,12 +251,12 @@ async def test_enrich_chunk_keywords_capped_at_five():
 **Step 2: Run tests to confirm they fail**
 
 ```bash
-cd /home/ralph/dev/agentic-rag && source backend/venv/bin/activate && python -m pytest tests/unit/services/test_chunk_enricher.py -v 2>&1 | head -20
+cd /home/ralph/dev/agentic-rag && source app/backapp/frontend/venv/bin/activate && python -m pytest tests/unit/services/test_chunk_enricher.py -v 2>&1 | head -20
 ```
 
 Expected: `ImportError` or `ModuleNotFoundError` — `chunk_enricher` doesn't exist yet.
 
-**Step 3: Create `backend/app/services/chunk_enricher.py`**
+**Step 3: Create `app/backapp/frontend/app/services/chunk_enricher.py`**
 
 ```python
 import json
@@ -307,7 +307,7 @@ async def enrich_chunk(content: str) -> ChunkEnrichment | None:
 **Step 4: Run the tests**
 
 ```bash
-cd /home/ralph/dev/agentic-rag && source backend/venv/bin/activate && python -m pytest tests/unit/services/test_chunk_enricher.py -v 2>&1
+cd /home/ralph/dev/agentic-rag && source app/backapp/frontend/venv/bin/activate && python -m pytest tests/unit/services/test_chunk_enricher.py -v 2>&1
 ```
 
 Expected: all 6 tests PASS
@@ -315,7 +315,7 @@ Expected: all 6 tests PASS
 **Step 5: Run full test suite**
 
 ```bash
-cd /home/ralph/dev/agentic-rag && source backend/venv/bin/activate && python -m pytest tests/ -v 2>&1
+cd /home/ralph/dev/agentic-rag && source app/backapp/frontend/venv/bin/activate && python -m pytest tests/ -v 2>&1
 ```
 
 Expected: all pass (no regressions)
@@ -323,7 +323,7 @@ Expected: all pass (no regressions)
 **Step 6: Commit**
 
 ```bash
-git add backend/app/services/chunk_enricher.py tests/unit/services/test_chunk_enricher.py
+git add app/backapp/frontend/app/services/chunk_enricher.py tests/unit/services/test_chunk_enricher.py
 git commit -m "feat: chunk enricher service — LLM summary + keywords with graceful fallback"
 ```
 
@@ -332,11 +332,11 @@ git commit -m "feat: chunk enricher service — LLM summary + keywords with grac
 ### Task 3: Update ingestion pipeline to collect chunk IDs and run enrichment
 
 **Files:**
-- Modify: `backend/app/services/ingestion.py`
+- Modify: `app/backapp/frontend/app/services/ingestion.py`
 
 **Step 1: Read the current ingestion file**
 
-Read `backend/app/services/ingestion.py` — focus on lines 68–83 (the chunk insert loop).
+Read `app/backapp/frontend/app/services/ingestion.py` — focus on lines 68–83 (the chunk insert loop).
 
 **Step 2: Make two targeted edits**
 
@@ -401,7 +401,7 @@ from app.services.chunk_enricher import enrich_chunk
 **Step 3: Verify the backend still starts**
 
 ```bash
-cd /home/ralph/dev/agentic-rag && source backend/venv/bin/activate && python -c "from app.services.ingestion import ingest_document; print('OK')" 2>&1
+cd /home/ralph/dev/agentic-rag && source app/backapp/frontend/venv/bin/activate && python -c "from app.services.ingestion import ingest_document; print('OK')" 2>&1
 ```
 
 Expected: `OK`
@@ -409,7 +409,7 @@ Expected: `OK`
 **Step 4: Run full test suite**
 
 ```bash
-cd /home/ralph/dev/agentic-rag && source backend/venv/bin/activate && python -m pytest tests/ -v 2>&1
+cd /home/ralph/dev/agentic-rag && source app/backapp/frontend/venv/bin/activate && python -m pytest tests/ -v 2>&1
 ```
 
 Expected: all pass
@@ -417,7 +417,7 @@ Expected: all pass
 **Step 5: Commit**
 
 ```bash
-git add backend/app/services/ingestion.py
+git add app/backapp/frontend/app/services/ingestion.py
 git commit -m "feat: run chunk enrichment inline during ingestion — summary embedding + keywords"
 ```
 

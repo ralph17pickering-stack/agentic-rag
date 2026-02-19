@@ -51,7 +51,7 @@ Chunks without enrichment fall back to content-only scoring — no regression fo
 
 ## Enrichment Service
 
-New file: `backend/app/services/chunk_enricher.py`
+New file: `app/backapp/frontend/app/services/chunk_enricher.py`
 
 ```python
 class ChunkEnrichment(BaseModel):
@@ -91,7 +91,7 @@ Enrichment failures are silently skipped — document still reaches `ready` stat
 | File | Change |
 |------|--------|
 | `supabase/migrations/019_chunk_enrichment.sql` | summary + summary_embedding columns; keywords table + RLS; updated match_chunks RPC |
-| `backend/app/services/chunk_enricher.py` | New enrichment service |
-| `backend/app/services/ingestion.py` | Collect chunk IDs + enrichment pass |
+| `app/backapp/frontend/app/services/chunk_enricher.py` | New enrichment service |
+| `app/backapp/frontend/app/services/ingestion.py` | Collect chunk IDs + enrichment pass |
 | `tests/unit/services/test_chunk_enricher.py` | New |
 | `tests/unit/models/test_chunk_enrichment_model.py` | New |

@@ -4,7 +4,7 @@
 
 **Goal:** Replace the monolithic tool definitions and dispatch in `llm.py` with a file-based autodiscovery registry, and fix text-format tool call parsing to handle all three common local LLM output formats.
 
-**Architecture:** Each tool lives in its own file under `backend/app/tools/`. A `_registry.py` module globs the directory at import time, loads every `plugin: ToolPlugin` it finds, and exposes `get_tools(ctx)` and `execute_tool(name, args, ctx)`. `llm.py` delegates to the registry and gains two new text-format parsers.
+**Architecture:** Each tool lives in its own file under `app/backapp/frontend/app/tools/`. A `_registry.py` module globs the directory at import time, loads every `plugin: ToolPlugin` it finds, and exposes `get_tools(ctx)` and `execute_tool(name, args, ctx)`. `llm.py` delegates to the registry and gains two new text-format parsers.
 
 **Tech Stack:** Python 3.13, FastAPI, dataclasses, importlib, glob — no new dependencies.
 
@@ -15,9 +15,9 @@
 Extract `ToolContext` and `ToolEvent` from `llm.py` into the new registry module so tool files can import them without circular dependencies.
 
 **Files:**
-- Create: `backend/app/tools/__init__.py`
-- Create: `backend/app/tools/_registry.py`
-- Modify: `backend/app/services/llm.py` (import ToolContext/ToolEvent from new location)
+- Create: `app/backapp/frontend/app/tools/__init__.py`
+- Create: `app/backapp/frontend/app/tools/_registry.py`
+- Modify: `app/backapp/frontend/app/services/llm.py` (import ToolContext/ToolEvent from new location)
 
 **Step 1: Write the failing test**
 
@@ -49,12 +49,12 @@ pytest tests/unit/tools/test_registry_types.py -v
 
 Expected: `ModuleNotFoundError: No module named 'app.tools'`
 
-**Step 3: Create `backend/app/tools/__init__.py`** (empty)
+**Step 3: Create `app/backapp/frontend/app/tools/__init__.py`** (empty)
 
 ```python
 ```
 
-**Step 4: Create `backend/app/tools/_registry.py`** with types only for now:
+**Step 4: Create `app/backapp/frontend/app/tools/_registry.py`** with types only for now:
 
 ```python
 """Tool plugin registry — types, autodiscovery, and dispatch."""
@@ -111,7 +111,7 @@ Expected: 2 PASS
 
 **Step 6: Update `llm.py` to import from registry**
 
-In `backend/app/services/llm.py`, replace the `ToolContext` and `ToolEvent` dataclass definitions and the `RetrieveFn` alias with imports:
+In `app/backapp/frontend/app/services/llm.py`, replace the `ToolContext` and `ToolEvent` dataclass definitions and the `RetrieveFn` alias with imports:
 
 ```python
 from app.tools._registry import ToolContext, ToolEvent
@@ -133,8 +133,8 @@ Expected: `OK`
 **Step 8: Commit**
 
 ```bash
-git add backend/app/tools/__init__.py backend/app/tools/_registry.py \
-        backend/app/services/llm.py \
+git add app/backapp/frontend/app/tools/__init__.py app/backapp/frontend/app/tools/_registry.py \
+        app/backapp/frontend/app/services/llm.py \
         tests/unit/tools/test_registry_types.py
 git commit -m "refactor: extract ToolContext/ToolEvent into tools/_registry.py"
 ```
@@ -146,7 +146,7 @@ git commit -m "refactor: extract ToolContext/ToolEvent into tools/_registry.py"
 Add the `get_tools` and `execute_tool` functions to `_registry.py` — the autodiscovery loop and dispatch. No tool files yet; the registry simply loads nothing and that's fine.
 
 **Files:**
-- Modify: `backend/app/tools/_registry.py`
+- Modify: `app/backapp/frontend/app/tools/_registry.py`
 
 **Step 1: Write the failing tests**
 
@@ -282,7 +282,7 @@ Expected: all PASS
 **Step 5: Commit**
 
 ```bash
-git add backend/app/tools/_registry.py tests/unit/tools/test_registry_types.py
+git add app/backapp/frontend/app/tools/_registry.py tests/unit/tools/test_registry_types.py
 git commit -m "feat: tool registry autodiscovery and dispatch"
 ```
 
@@ -293,8 +293,8 @@ git commit -m "feat: tool registry autodiscovery and dispatch"
 Move the first tool out of `llm.py` into its own file.
 
 **Files:**
-- Create: `backend/app/tools/retrieve_documents.py`
-- Modify: `backend/app/services/llm.py` (remove RETRIEVE_TOOL + its branch in `_execute_tool`)
+- Create: `app/backapp/frontend/app/tools/retrieve_documents.py`
+- Modify: `app/backapp/frontend/app/services/llm.py` (remove RETRIEVE_TOOL + its branch in `_execute_tool`)
 
 **Step 1: Write the failing test**
 
@@ -334,7 +334,7 @@ pytest tests/unit/tools/test_tool_retrieve_documents.py -v
 
 Expected: `ModuleNotFoundError: No module named 'app.tools.retrieve_documents'`
 
-**Step 3: Create `backend/app/tools/retrieve_documents.py`**
+**Step 3: Create `app/backapp/frontend/app/tools/retrieve_documents.py`**
 
 ```python
 """retrieve_documents tool — searches the user's uploaded document chunks."""
@@ -402,7 +402,7 @@ Expected: 2 PASS
 **Step 5: Commit**
 
 ```bash
-git add backend/app/tools/retrieve_documents.py tests/unit/tools/test_tool_retrieve_documents.py
+git add app/backapp/frontend/app/tools/retrieve_documents.py tests/unit/tools/test_tool_retrieve_documents.py
 git commit -m "feat: migrate retrieve_documents tool to registry"
 ```
 
@@ -413,10 +413,10 @@ git commit -m "feat: migrate retrieve_documents tool to registry"
 Migrate `query_documents_metadata`, `web_search`, `deep_analysis`, and `graph_search` using the same pattern. Each gets a test file and a tool file. This task covers all four together since the pattern is identical.
 
 **Files:**
-- Create: `backend/app/tools/query_documents_metadata.py`
-- Create: `backend/app/tools/web_search.py`
-- Create: `backend/app/tools/deep_analysis.py`
-- Create: `backend/app/tools/graph_search.py`
+- Create: `app/backapp/frontend/app/tools/query_documents_metadata.py`
+- Create: `app/backapp/frontend/app/tools/web_search.py`
+- Create: `app/backapp/frontend/app/tools/deep_analysis.py`
+- Create: `app/backapp/frontend/app/tools/graph_search.py`
 - Create: `tests/unit/tools/test_tool_query_documents_metadata.py`
 - Create: `tests/unit/tools/test_tool_web_search.py`
 - Create: `tests/unit/tools/test_tool_deep_analysis.py`
@@ -499,7 +499,7 @@ pytest tests/unit/tools/test_tool_query_documents_metadata.py \
 
 Expected: all FAIL with `ModuleNotFoundError`
 
-**Step 3: Create `backend/app/tools/query_documents_metadata.py`**
+**Step 3: Create `app/backapp/frontend/app/tools/query_documents_metadata.py`**
 
 ```python
 """query_documents_metadata tool — natural language metadata queries via SQL."""
@@ -537,7 +537,7 @@ plugin = ToolPlugin(
 )
 ```
 
-**Step 4: Create `backend/app/tools/web_search.py`**
+**Step 4: Create `app/backapp/frontend/app/tools/web_search.py`**
 
 ```python
 """web_search tool — Perplexity-powered web search."""
@@ -575,7 +575,7 @@ plugin = ToolPlugin(
 )
 ```
 
-**Step 5: Create `backend/app/tools/deep_analysis.py`**
+**Step 5: Create `app/backapp/frontend/app/tools/deep_analysis.py`**
 
 ```python
 """deep_analysis tool — multi-pass sub-agent analysis of the user's documents."""
@@ -626,7 +626,7 @@ plugin = ToolPlugin(
 )
 ```
 
-**Step 6: Create `backend/app/tools/graph_search.py`**
+**Step 6: Create `app/backapp/frontend/app/tools/graph_search.py`**
 
 ```python
 """graph_search tool — knowledge graph queries (global themes or entity paths)."""
@@ -692,10 +692,10 @@ Expected: all PASS
 **Step 8: Commit**
 
 ```bash
-git add backend/app/tools/query_documents_metadata.py \
-        backend/app/tools/web_search.py \
-        backend/app/tools/deep_analysis.py \
-        backend/app/tools/graph_search.py \
+git add app/backapp/frontend/app/tools/query_documents_metadata.py \
+        app/backapp/frontend/app/tools/web_search.py \
+        app/backapp/frontend/app/tools/deep_analysis.py \
+        app/backapp/frontend/app/tools/graph_search.py \
         tests/unit/tools/test_tool_query_documents_metadata.py \
         tests/unit/tools/test_tool_web_search.py \
         tests/unit/tools/test_tool_deep_analysis.py \
@@ -710,7 +710,7 @@ git commit -m "feat: migrate all remaining tools to registry"
 Replace `get_tools()` and `_execute_tool()` calls in `llm.py` with registry calls. Remove the now-redundant definitions.
 
 **Files:**
-- Modify: `backend/app/services/llm.py`
+- Modify: `app/backapp/frontend/app/services/llm.py`
 
 **Step 1: Write the integration test**
 
@@ -769,7 +769,7 @@ Expected: FAIL — `llm.get_tools` still uses the old internal list
 
 **Step 3: Update `llm.py`**
 
-In `backend/app/services/llm.py`:
+In `app/backapp/frontend/app/services/llm.py`:
 
 a) Add imports at the top:
 ```python
@@ -828,7 +828,7 @@ Expected: INFO logs like `Loaded tool: retrieve_documents`, followed by a list o
 **Step 7: Commit**
 
 ```bash
-git add backend/app/services/llm.py tests/unit/tools/test_llm_uses_registry.py
+git add app/backapp/frontend/app/services/llm.py tests/unit/tools/test_llm_uses_registry.py
 git commit -m "refactor: wire llm.py to use tool registry, remove dead tool definitions"
 ```
 
@@ -839,7 +839,7 @@ git commit -m "refactor: wire llm.py to use tool registry, remove dead tool defi
 Extend `_parse_text_tool_calls` in `llm.py` to handle the `<tool_call>` JSON format and the bare JSON array format in addition to the existing `<function=...>` format.
 
 **Files:**
-- Modify: `backend/app/services/llm.py`
+- Modify: `app/backapp/frontend/app/services/llm.py`
 - Create: `tests/unit/services/test_parse_text_tool_calls.py`
 
 **Step 1: Write failing tests**
@@ -1012,7 +1012,7 @@ Expected: all PASS
 **Step 6: Commit**
 
 ```bash
-git add backend/app/services/llm.py tests/unit/services/test_parse_text_tool_calls.py
+git add app/backapp/frontend/app/services/llm.py tests/unit/services/test_parse_text_tool_calls.py
 git commit -m "fix: extend text tool call parsing to handle <tool_call> JSON and bare array formats"
 ```
 
@@ -1032,7 +1032,7 @@ Add a new section after Phase 5 in `PROGRESS.md`:
 ```markdown
 #### Phase 5b — Tool infrastructure
 
-- [x] **Tool registry:** File-based autodiscovery — add a tool by dropping a file into `backend/app/tools/`
+- [x] **Tool registry:** File-based autodiscovery — add a tool by dropping a file into `app/backapp/frontend/app/tools/`
 - [x] **Text tool call parsing:** Handle all three common local LLM text formats (`<function=...>`, `<tool_call>` JSON, bare JSON array)
 - [x] **Tool migration:** All existing tools (retrieve_documents, query_documents_metadata, web_search, deep_analysis, graph_search) migrated to registry
 ```

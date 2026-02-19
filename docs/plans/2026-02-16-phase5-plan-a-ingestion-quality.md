@@ -13,7 +13,7 @@
 ### Task 1: Tests + rewrite `_extract_html` to emit markdown structure
 
 **Files:**
-- Modify: `backend/app/services/extraction.py:73-75`
+- Modify: `app/backapp/frontend/app/services/extraction.py:73-75`
 - Create: `tests/unit/services/test_extraction.py`
 
 **Step 1: Create the test file**
@@ -100,12 +100,12 @@ def test_html_no_excessive_blank_lines():
 **Step 2: Run tests to confirm they fail**
 
 ```bash
-cd /home/ralph/dev/agentic-rag && source backend/venv/bin/activate && python -m pytest tests/unit/services/test_extraction.py -v 2>&1 | head -40
+cd /home/ralph/dev/agentic-rag && source app/backapp/frontend/venv/bin/activate && python -m pytest tests/unit/services/test_extraction.py -v 2>&1 | head -40
 ```
 
 Expected: most HTML tests FAIL (current `_extract_html` just calls `get_text`)
 
-**Step 3: Rewrite `_extract_html` in `backend/app/services/extraction.py`**
+**Step 3: Rewrite `_extract_html` in `app/backapp/frontend/app/services/extraction.py`**
 
 Replace the current `_extract_html` function (lines 73–75) with:
 
@@ -203,7 +203,7 @@ Also add `_table_to_markdown` as a module-level helper (it's called from `_walk`
 **Step 4: Run the HTML tests**
 
 ```bash
-cd /home/ralph/dev/agentic-rag && source backend/venv/bin/activate && python -m pytest tests/unit/services/test_extraction.py -v -k "html" 2>&1
+cd /home/ralph/dev/agentic-rag && source app/backapp/frontend/venv/bin/activate && python -m pytest tests/unit/services/test_extraction.py -v -k "html" 2>&1
 ```
 
 Expected: all HTML tests PASS
@@ -211,7 +211,7 @@ Expected: all HTML tests PASS
 **Step 5: Commit**
 
 ```bash
-cd /home/ralph/dev/agentic-rag && git add backend/app/services/extraction.py tests/unit/services/test_extraction.py && git commit -m "feat: structure-preserving HTML extraction — headings, tables, lists to markdown"
+cd /home/ralph/dev/agentic-rag && git add app/backapp/frontend/app/services/extraction.py tests/unit/services/test_extraction.py && git commit -m "feat: structure-preserving HTML extraction — headings, tables, lists to markdown"
 ```
 
 ---
@@ -219,7 +219,7 @@ cd /home/ralph/dev/agentic-rag && git add backend/app/services/extraction.py tes
 ### Task 2: Tests + rewrite `_extract_docx` to emit markdown structure
 
 **Files:**
-- Modify: `backend/app/services/extraction.py:44-60`
+- Modify: `app/backapp/frontend/app/services/extraction.py:44-60`
 - Modify: `tests/unit/services/test_extraction.py` (add DOCX tests)
 
 **Step 1: Add DOCX tests to `tests/unit/services/test_extraction.py`**
@@ -283,12 +283,12 @@ def test_docx_table_becomes_markdown_table():
 **Step 2: Run DOCX tests to confirm they fail**
 
 ```bash
-cd /home/ralph/dev/agentic-rag && source backend/venv/bin/activate && python -m pytest tests/unit/services/test_extraction.py -v -k "docx" 2>&1
+cd /home/ralph/dev/agentic-rag && source app/backapp/frontend/venv/bin/activate && python -m pytest tests/unit/services/test_extraction.py -v -k "docx" 2>&1
 ```
 
 Expected: FAIL — current `_extract_docx` doesn't check heading styles or emit markdown tables
 
-**Step 3: Rewrite `_extract_docx` in `backend/app/services/extraction.py`**
+**Step 3: Rewrite `_extract_docx` in `app/backapp/frontend/app/services/extraction.py`**
 
 Replace the current `_extract_docx` function (lines 44–60) with:
 
@@ -371,7 +371,7 @@ def _extract_docx(file_bytes: bytes) -> str:
 **Step 4: Run all extraction tests**
 
 ```bash
-cd /home/ralph/dev/agentic-rag && source backend/venv/bin/activate && python -m pytest tests/unit/services/test_extraction.py -v 2>&1
+cd /home/ralph/dev/agentic-rag && source app/backapp/frontend/venv/bin/activate && python -m pytest tests/unit/services/test_extraction.py -v 2>&1
 ```
 
 Expected: all tests PASS
@@ -379,7 +379,7 @@ Expected: all tests PASS
 **Step 5: Commit**
 
 ```bash
-cd /home/ralph/dev/agentic-rag && git add backend/app/services/extraction.py tests/unit/services/test_extraction.py && git commit -m "feat: structure-preserving DOCX extraction — headings and tables to markdown"
+cd /home/ralph/dev/agentic-rag && git add app/backapp/frontend/app/services/extraction.py tests/unit/services/test_extraction.py && git commit -m "feat: structure-preserving DOCX extraction — headings and tables to markdown"
 ```
 
 ---
@@ -387,7 +387,7 @@ cd /home/ralph/dev/agentic-rag && git add backend/app/services/extraction.py tes
 ### Task 3: Tests + implement heading-boundary chunking in `chunker.py`
 
 **Files:**
-- Modify: `backend/app/services/chunker.py`
+- Modify: `app/backapp/frontend/app/services/chunker.py`
 - Create: `tests/unit/services/test_chunker.py`
 
 **Step 1: Create `tests/unit/services/test_chunker.py`**
@@ -486,14 +486,14 @@ def test_whitespace_only_returns_empty_list():
 **Step 2: Run tests to confirm they fail**
 
 ```bash
-cd /home/ralph/dev/agentic-rag && source backend/venv/bin/activate && python -m pytest tests/unit/services/test_chunker.py -v 2>&1
+cd /home/ralph/dev/agentic-rag && source app/backapp/frontend/venv/bin/activate && python -m pytest tests/unit/services/test_chunker.py -v 2>&1
 ```
 
 Expected: most tests FAIL (current chunker has no heading detection)
 
 **Step 3: Rewrite `chunker.py`**
 
-Replace the entire contents of `backend/app/services/chunker.py` with:
+Replace the entire contents of `app/backapp/frontend/app/services/chunker.py` with:
 
 ```python
 import re
@@ -673,7 +673,7 @@ def _append_chunk(chunks: list[Chunk], content: str, tokens: list[int]) -> None:
 **Step 4: Run chunker tests**
 
 ```bash
-cd /home/ralph/dev/agentic-rag && source backend/venv/bin/activate && python -m pytest tests/unit/services/test_chunker.py -v 2>&1
+cd /home/ralph/dev/agentic-rag && source app/backapp/frontend/venv/bin/activate && python -m pytest tests/unit/services/test_chunker.py -v 2>&1
 ```
 
 Expected: all tests PASS
@@ -681,7 +681,7 @@ Expected: all tests PASS
 **Step 5: Run full test suite**
 
 ```bash
-cd /home/ralph/dev/agentic-rag && source backend/venv/bin/activate && python -m pytest tests/ -v 2>&1
+cd /home/ralph/dev/agentic-rag && source app/backapp/frontend/venv/bin/activate && python -m pytest tests/ -v 2>&1
 ```
 
 Expected: all tests PASS (no regressions)
@@ -689,7 +689,7 @@ Expected: all tests PASS (no regressions)
 **Step 6: Commit**
 
 ```bash
-cd /home/ralph/dev/agentic-rag && git add backend/app/services/chunker.py tests/unit/services/test_chunker.py && git commit -m "feat: boundary-aware chunking — heading splits, table atomicity, token fallback"
+cd /home/ralph/dev/agentic-rag && git add app/backapp/frontend/app/services/chunker.py tests/unit/services/test_chunker.py && git commit -m "feat: boundary-aware chunking — heading splits, table atomicity, token fallback"
 ```
 
 ---

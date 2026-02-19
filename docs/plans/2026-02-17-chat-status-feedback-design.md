@@ -42,7 +42,7 @@ Show real-time status updates in a temporary bubble that changes as work progres
 
 ## Backend Changes
 
-### `backend/app/services/llm.py`
+### `app/backapp/frontend/app/services/llm.py`
 
 Before calling `execute_tool`, yield a `ToolEvent(tool_name="tool_start", data={...})` with relevant args extracted per tool:
 
@@ -54,7 +54,7 @@ Before calling `execute_tool`, yield a `ToolEvent(tool_name="tool_start", data={
 | `query_documents_metadata` | `question` |
 | `deep_analysis` | `query` |
 
-### `backend/app/routers/chat.py`
+### `app/backapp/frontend/app/routers/chat.py`
 
 - Add handler for `tool_start` ToolEvents → yield `{"tool_start": {...}}`
 - Add `query` field to existing `used_sources` payload

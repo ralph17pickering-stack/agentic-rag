@@ -142,7 +142,7 @@ Track your progress through the masterclass. Update this file as you complete mo
 
 #### Phase 5b — Tool infrastructure
 
-- [x] **Tool registry:** File-based autodiscovery — add a tool by dropping a file into `backend/app/tools/`; all five existing tools migrated
+- [x] **Tool registry:** File-based autodiscovery — add a tool by dropping a file into `app/backapp/frontend/app/tools/`; all five existing tools migrated
 - [x] **Text tool call parsing:** Handle all three common local LLM text formats (`<function=...>`, `<tool_call>` JSON, bare JSON array)
 
 #### Phase 6 — Projects (organisation + sharing)

@@ -77,7 +77,7 @@ The local LLM server at `:8081` does **not** serve the `/v1/embeddings` endpoint
 {"error":{"code":501,"message":"This server does not support embeddings. Start it with `--embeddings`","type":"not_supported_error"}}
 ```
 
-**Action needed**: Restart the local LLM with the `--embeddings` flag before testing ingestion or retrieval. Verify the embedding dimension matches `embedding_dim` in `backend/app/config.py` (currently: 2048).
+**Action needed**: Restart the local LLM with the `--embeddings` flag before testing ingestion or retrieval. Verify the embedding dimension matches `embedding_dim` in `app/backapp/frontend/app/config.py` (currently: 2048).
 
 ### pgvector Works Out of the Box in Supabase Self-Hosted
 

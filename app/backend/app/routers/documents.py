@@ -10,6 +10,11 @@ from app.services.ingestion import ingest_document
 from app.services.hashing import sha256_hex
 from app.services.extraction import extract_text
 from app.models.documents import DocumentResponse, UrlIngestRequest, DocumentUpdateRequest
+from pydantic import BaseModel as PydanticBaseModel
+
+
+class BlockTagRequest(PydanticBaseModel):
+    tag: str
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
@@ -35,6 +40,30 @@ async def list_documents(user: dict = Depends(get_current_user)):
         .execute()
     )
     return result.data
+
+
+@router.get("/blocked-tags")
+async def list_blocked_tags(user: dict = Depends(get_current_user)):
+    sb = get_supabase_client(user["token"])
+    result = sb.table("blocked_tags").select("*").order("created_at", desc=True).execute()
+    return result.data
+
+
+@router.post("/blocked-tags")
+async def block_tag(body: BlockTagRequest, user: dict = Depends(get_current_user)):
+    tag = body.tag.strip().lower()
+    if not tag:
+        raise HTTPException(status_code=400, detail="Tag cannot be empty")
+    sb = get_supabase_client(user["token"])
+    result = sb.rpc("block_tag", {"p_tag": tag}).execute()
+    docs_updated = result.data if isinstance(result.data, int) else 0
+    return {"tag": tag, "documents_updated": docs_updated}
+
+
+@router.delete("/blocked-tags/{tag}", status_code=status.HTTP_204_NO_CONTENT)
+async def unblock_tag(tag: str, user: dict = Depends(get_current_user)):
+    sb = get_supabase_client(user["token"])
+    sb.rpc("unblock_tag", {"p_tag": tag}).execute()
 
 
 @router.patch("/{document_id}", response_model=DocumentResponse)

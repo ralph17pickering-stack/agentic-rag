@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { X } from "lucide-react"
+import { X, Ban } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -19,9 +19,10 @@ interface EditMetadataModalProps {
     id: string,
     updates: Partial<Pick<Document, "title" | "summary" | "topics" | "document_date">>
   ) => Promise<Document>
+  onBlockTag?: (tag: string) => Promise<number>
 }
 
-export function EditMetadataModal({ document, open, onClose, onSave }: EditMetadataModalProps) {
+export function EditMetadataModal({ document, open, onClose, onSave, onBlockTag }: EditMetadataModalProps) {
   const [localTitle, setLocalTitle] = useState("")
   const [localSummary, setLocalSummary] = useState("")
   const [localTopics, setLocalTopics] = useState<string[]>([])
@@ -132,6 +133,19 @@ export function EditMetadataModal({ document, open, onClose, onSave }: EditMetad
                   className="inline-flex items-center gap-1 bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs"
                 >
                   {topic}
+                  {onBlockTag && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onBlockTag(topic).then(() => removeTopic(topic))
+                      }}
+                      className="hover:text-destructive"
+                      title="Block this tag from all documents"
+                    >
+                      <Ban className="size-3" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); removeTopic(topic) }}

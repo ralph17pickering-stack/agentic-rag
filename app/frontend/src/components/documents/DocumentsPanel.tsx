@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react"
-import { Eye, ExternalLink, Pencil, X } from "lucide-react"
+import { Eye, ExternalLink, Pencil, X, Ban } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { useDocumentViewer } from "@/hooks/useDocumentViewer"
 import { EditMetadataModal } from "@/components/documents/EditMetadataModal"
@@ -12,6 +13,7 @@ interface DocumentsPanelProps {
   onUpload: (file: File) => Promise<Document>
   onDelete: (id: string) => Promise<void>
   onUpdate: (id: string, updates: Partial<Pick<Document, "title" | "summary" | "topics" | "document_date">>) => Promise<Document>
+  onBlockTag: (tag: string) => Promise<number>
 }
 
 const STATUS_COLORS: Record<Document["status"], string> = {
@@ -49,6 +51,7 @@ export function DocumentsPanel({
   onUpload,
   onDelete,
   onUpdate,
+  onBlockTag,
 }: DocumentsPanelProps) {
   const { openDocument } = useDocumentViewer()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -57,6 +60,7 @@ export function DocumentsPanel({
   const [info, setInfo] = useState<string | null>(null)
   const [editingDoc, setEditingDoc] = useState<Document | null>(null)
   const [activeTopics, setActiveTopics] = useState<Set<string>>(new Set())
+  const [contextMenu, setContextMenu] = useState<{ topic: string; x: number; y: number } | null>(null)
 
   const toggleTopic = (topic: string) => {
     setActiveTopics(prev => {
@@ -230,6 +234,11 @@ export function DocumentsPanel({
                         <button
                           key={topic}
                           onClick={(e) => { e.stopPropagation(); toggleTopic(topic) }}
+                          onContextMenu={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setContextMenu({ topic, x: e.clientX, y: e.clientY })
+                          }}
                           className={`text-xs rounded-full px-2 py-0.5 transition-colors ${
                             activeTopics.has(topic)
                               ? "bg-primary text-primary-foreground"
@@ -287,7 +296,46 @@ export function DocumentsPanel({
         open={editingDoc !== null}
         onClose={() => setEditingDoc(null)}
         onSave={onUpdate}
+        onBlockTag={onBlockTag}
       />
+
+      {contextMenu && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setContextMenu(null)}
+          />
+          <div
+            className="fixed z-50 bg-popover border rounded-md shadow-md py-1 min-w-[160px]"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+          >
+            <button
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left"
+              onClick={() => {
+                toggleTopic(contextMenu.topic)
+                setContextMenu(null)
+              }}
+            >
+              Filter by tag
+            </button>
+            <button
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-sm hover:bg-accent text-left text-destructive"
+              onClick={async () => {
+                const topic = contextMenu.topic
+                setContextMenu(null)
+                try {
+                  const count = await onBlockTag(topic)
+                  toast.success(`Blocked "${topic}" — removed from ${count} document(s)`)
+                } catch {
+                  toast.error(`Failed to block "${topic}"`)
+                }
+              }}
+            >
+              <Ban className="size-3" /> Block this tag
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }

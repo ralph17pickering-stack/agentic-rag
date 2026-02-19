@@ -1,10 +1,19 @@
-import { useEffect } from "react"
+import { useEffect, useCallback } from "react"
 import { useDocuments } from "@/hooks/useDocuments"
+import { useBlockedTags } from "@/hooks/useBlockedTags"
 import { DocumentsPanel } from "./DocumentsPanel"
 
 export function DocumentsLayout() {
   const { documents, loading, uploading, fetchDocuments, uploadDocument, deleteDocument, updateDocument } =
     useDocuments()
+
+  const { blockTag } = useBlockedTags()
+
+  const handleBlockTag = useCallback(async (tag: string) => {
+    const count = await blockTag(tag)
+    await fetchDocuments(true)  // silent refresh to pick up removed tags
+    return count
+  }, [blockTag, fetchDocuments])
 
   useEffect(() => {
     fetchDocuments()
@@ -18,6 +27,7 @@ export function DocumentsLayout() {
       onUpload={uploadDocument}
       onDelete={deleteDocument}
       onUpdate={updateDocument}
+      onBlockTag={handleBlockTag}
     />
   )
 }

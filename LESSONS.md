@@ -462,3 +462,20 @@ There is no need to filter by `user_id` inside the function body — the calling
 **Migration files under `db/` require `git add -f` because `db/` is in `.gitignore`.**
 
 When committing new SQL migrations, use `git add -f db/migrations/<file>.sql`. Consider adding `!db/migrations/` as a `.gitignore` exception if the project accumulates many migrations.
+
+## Session: Tag Quality Improvement
+
+### YAKE Generates Structural Noise, Not Just Topic Noise
+
+**YAKE keyword extraction picks up document template headings (e.g., "communications plan", "executive summary", "key findings") as top-scoring keyphrases.** These are statistically prominent but describe document structure, not content. Increasing YAKE candidates from 5→15 combined with a per-user blocklist lets users suppress template noise while keeping more genuine topic tags.
+
+### Blocklist + Background LLM Sweep is a Good Two-Layer Pattern
+
+**Layer 1 (blocklist):** Immediate, user-controlled, zero-cost — for tags you know are bad.
+**Layer 2 (LLM sweep):** Periodic, automatic, catches tags you haven't manually blocked yet. Uses a cheap prompt (title + summary + tags → keep/remove) on a random sample of documents. Tags removed from 3+ docs in one sweep get auto-blocked.
+
+This avoids the "whack-a-mole" problem where new bad tags appear as new documents are ingested.
+
+### FastAPI Route Ordering Matters for Path Parameters
+
+**Static path segments must be defined before dynamic `/{param}` routes.** The `/blocked-tags` endpoints needed to be placed before `/{document_id}` in the documents router, otherwise FastAPI would try to match "blocked-tags" as a UUID document_id and return 404/422.

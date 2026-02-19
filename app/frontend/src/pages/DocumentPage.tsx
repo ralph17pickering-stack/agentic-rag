@@ -183,7 +183,7 @@ export function DocumentPage() {
             document={editingDoc}
             open
             onClose={() => setEditingDoc(null)}
-            onSave={(updates) => handleUpdate(editingDoc.id, updates)}
+            onSave={(id, updates) => handleUpdate(id, updates)}
           />
         )}
       </div>

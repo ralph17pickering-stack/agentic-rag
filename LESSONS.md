@@ -479,3 +479,45 @@ This avoids the "whack-a-mole" problem where new bad tags appear as new document
 ### FastAPI Route Ordering Matters for Path Parameters
 
 **Static path segments must be defined before dynamic `/{param}` routes.** The `/blocked-tags` endpoints needed to be placed before `/{document_id}` in the documents router, otherwise FastAPI would try to match "blocked-tags" as a UUID document_id and return 404/422.
+
+---
+
+## Session: Block Tag UI + NetworkError Debugging
+
+### Unhandled FastAPI Exceptions Bypass CORS Middleware → "NetworkError"
+
+**When a FastAPI route handler raises an unhandled Python exception (e.g., `APIError` from supabase-py), the error propagates past the CORS middleware, producing a plain-text 500 with no `Access-Control-Allow-Origin` header. The browser then reports "NetworkError when attempting to fetch resource" — not a CORS error or a 500 — making the real cause invisible.**
+
+Root cause chain: missing DB migration → `sb.rpc(...)` raises `APIError` → unhandled in route → uvicorn returns `text/plain 500` with no CORS headers → Firefox/Chrome: "NetworkError".
+
+**Fix:** Always wrap Supabase table/RPC calls in try-catch and re-raise as `HTTPException`. FastAPI then handles the response (including CORS headers) correctly:
+```python
+try:
+    result = sb.rpc("block_tag", {"p_tag": tag}).execute()
+except Exception as e:
+    raise HTTPException(status_code=500, detail=f"Failed to block tag: {e}")
+```
+
+### Diagnose "NetworkError" by Labelling Each Async Call
+
+**Firefox "NetworkError" gives no indication of which `fetch()` call failed.** When `handleSave` makes multiple sequential awaited calls, label each one in its own try-catch with a prefix:
+```typescript
+try { await onBlockTag?.(tag) } catch (e) {
+  throw new Error(`Block "${tag}": ${e instanceof Error ? e.message : String(e)}`)
+}
+try { await onSave(...) } catch (e) {
+  throw new Error(`Save: ${e instanceof Error ? e.message : String(e)}`)
+}
+```
+The error message shown to the user immediately identifies which call failed.
+
+### Fire-and-Forget Refreshes Shouldn't Propagate Errors to Callers
+
+**If a post-action refresh (e.g., `fetchDocuments`) fails, it must not abort the caller's success path.** Awaiting it without a catch propagates network errors back through the call chain to the UI. Use `.catch(() => {})` for best-effort background refreshes:
+```typescript
+fetchDocuments(true).catch(() => {})  // best-effort; never throw
+```
+
+### Pending-State Pattern for Deferred Actions
+
+**For actions that should only execute on an explicit "Save" (not immediately on click), use a local `Set` of pending items.** The Ban/block button toggles the tag into/out of `pendingBlocks`; the tag chip shows destructive styling with strikethrough; `handleSave` iterates the set and calls the real API. Cancelling the modal resets the set. This gives clear visual feedback without side effects until the user commits.

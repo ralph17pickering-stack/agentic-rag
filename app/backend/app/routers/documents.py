@@ -45,7 +45,10 @@ async def list_documents(user: dict = Depends(get_current_user)):
 @router.get("/blocked-tags")
 async def list_blocked_tags(user: dict = Depends(get_current_user)):
     sb = get_supabase_client(user["token"])
-    result = sb.table("blocked_tags").select("*").order("created_at", desc=True).execute()
+    try:
+        result = sb.table("blocked_tags").select("*").order("created_at", desc=True).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list blocked tags: {e}")
     return result.data
 
 
@@ -55,15 +58,21 @@ async def block_tag(body: BlockTagRequest, user: dict = Depends(get_current_user
     if not tag:
         raise HTTPException(status_code=400, detail="Tag cannot be empty")
     sb = get_supabase_client(user["token"])
-    result = sb.rpc("block_tag", {"p_tag": tag}).execute()
-    docs_updated = result.data if isinstance(result.data, int) else 0
+    try:
+        result = sb.rpc("block_tag", {"p_tag": tag}).execute()
+        docs_updated = result.data if isinstance(result.data, int) else 0
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to block tag: {e}")
     return {"tag": tag, "documents_updated": docs_updated}
 
 
 @router.delete("/blocked-tags/{tag}", status_code=status.HTTP_204_NO_CONTENT)
 async def unblock_tag(tag: str, user: dict = Depends(get_current_user)):
     sb = get_supabase_client(user["token"])
-    sb.rpc("unblock_tag", {"p_tag": tag}).execute()
+    try:
+        sb.rpc("unblock_tag", {"p_tag": tag}).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to unblock tag: {e}")
 
 
 @router.patch("/{document_id}", response_model=DocumentResponse)

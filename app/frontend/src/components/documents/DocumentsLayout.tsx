@@ -11,7 +11,7 @@ export function DocumentsLayout() {
 
   const handleBlockTag = useCallback(async (tag: string) => {
     const count = await blockTag(tag)
-    await fetchDocuments(true)  // silent refresh to pick up removed tags
+    fetchDocuments(true).catch(() => {})  // best-effort refresh; don't let it abort the caller
     return count
   }, [blockTag, fetchDocuments])
 

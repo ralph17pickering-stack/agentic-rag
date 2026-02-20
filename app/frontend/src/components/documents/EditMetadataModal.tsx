@@ -30,6 +30,7 @@ export function EditMetadataModal({ document, open, onClose, onSave, onBlockTag 
   const [topicInput, setTopicInput] = useState("")
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingBlocks, setPendingBlocks] = useState<Set<string>>(new Set())
   const topicInputRef = useRef<HTMLInputElement>(null)
 
   // Reset fields whenever the modal opens with a document
@@ -41,6 +42,7 @@ export function EditMetadataModal({ document, open, onClose, onSave, onBlockTag 
       setLocalDate(document.document_date ?? "")
       setTopicInput("")
       setError(null)
+      setPendingBlocks(new Set())
     }
   }, [open, document])
 
@@ -74,12 +76,24 @@ export function EditMetadataModal({ document, open, onClose, onSave, onBlockTag 
     setSaving(true)
     setError(null)
     try {
-      await onSave(document.id, {
-        title: localTitle || null,
-        summary: localSummary || null,
-        topics: localTopics,
-        document_date: localDate || null,
-      })
+      // Execute any pending block actions
+      for (const tag of pendingBlocks) {
+        try {
+          await onBlockTag?.(tag)
+        } catch (e) {
+          throw new Error(`Block "${tag}": ${e instanceof Error ? e.message : String(e)}`)
+        }
+      }
+      try {
+        await onSave(document.id, {
+          title: localTitle || null,
+          summary: localSummary || null,
+          topics: localTopics.filter(t => !pendingBlocks.has(t)),
+          document_date: localDate || null,
+        })
+      } catch (e) {
+        throw new Error(`Save: ${e instanceof Error ? e.message : String(e)}`)
+      }
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed")
@@ -127,34 +141,46 @@ export function EditMetadataModal({ document, open, onClose, onSave, onBlockTag 
               className="border-input dark:bg-input/30 focus-within:border-ring focus-within:ring-ring/50 flex min-h-9 w-full flex-wrap items-center gap-1 rounded-md border bg-transparent px-3 py-1.5 shadow-xs transition-[color,box-shadow] focus-within:ring-[3px]"
               onClick={() => topicInputRef.current?.focus()}
             >
-              {localTopics.map((topic) => (
-                <span
-                  key={topic}
-                  className="inline-flex items-center gap-1 bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs"
-                >
-                  {topic}
-                  {onBlockTag && (
+              {localTopics.map((topic) => {
+                const isBlocking = pendingBlocks.has(topic)
+                return (
+                  <span
+                    key={topic}
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${
+                      isBlocking
+                        ? "bg-destructive/15 text-destructive line-through"
+                        : "bg-primary/10 text-primary"
+                    }`}
+                  >
+                    {topic}
+                    {onBlockTag && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setPendingBlocks(prev => {
+                            const next = new Set(prev)
+                            if (next.has(topic)) next.delete(topic)
+                            else next.add(topic)
+                            return next
+                          })
+                        }}
+                        className={isBlocking ? "text-destructive" : "hover:text-destructive"}
+                        title={isBlocking ? "Cancel block" : "Block this tag from all documents"}
+                      >
+                        <Ban className="size-3" />
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onBlockTag(topic).then(() => removeTopic(topic))
-                      }}
+                      onClick={(e) => { e.stopPropagation(); removeTopic(topic) }}
                       className="hover:text-destructive"
-                      title="Block this tag from all documents"
                     >
-                      <Ban className="size-3" />
+                      <X className="size-3" />
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); removeTopic(topic) }}
-                    className="hover:text-destructive"
-                  >
-                    <X className="size-3" />
-                  </button>
-                </span>
-              ))}
+                  </span>
+                )
+              })}
               <input
                 ref={topicInputRef}
                 value={topicInput}

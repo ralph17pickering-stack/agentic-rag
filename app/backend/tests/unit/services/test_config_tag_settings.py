@@ -14,3 +14,13 @@ def test_tag_settings_defaults():
     assert s.tag_quality_sweep_interval_hours == 12
     assert s.tag_quality_sweep_sample_size == 10
     assert s.tag_quality_auto_block_threshold == 3
+
+
+def test_enrichment_sweep_defaults():
+    from app.config import Settings
+    s = Settings()
+    assert s.tag_enrichment_sweep_enabled is True
+    assert s.tag_enrichment_sweep_interval_minutes == 10.0
+    assert s.tag_enrichment_sweep_batch_size == 3
+    assert s.tag_enrichment_idle_minutes == 20.0
+    assert s.tag_enrichment_max_age_days == 60

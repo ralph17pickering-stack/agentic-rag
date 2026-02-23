@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     tag_quality_sweep_interval_hours: float = 12
     tag_quality_sweep_sample_size: int = 10
     tag_quality_auto_block_threshold: int = 3       # auto-block if removed from N+ docs in one sweep
+    tag_enrichment_sweep_enabled: bool = True
+    tag_enrichment_sweep_interval_minutes: float = 10
+    tag_enrichment_sweep_batch_size: int = 3
+    tag_enrichment_idle_minutes: float = 20
+    tag_enrichment_max_age_days: int = 60
 
     graphrag_enabled: bool = True
     graphrag_extraction_batch_size: int = 10

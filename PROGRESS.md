@@ -131,7 +131,7 @@ Track your progress through the masterclass. Update this file as you complete mo
 * [x] **Topic consolidation:** Background task merges near-duplicate topic tags to canonical topics.
 - [x] **Edit metadata (UI):** Ability to edit document metadata in the UI (start with title/topics; expand later if needed).
 - [x] **Agentic tag tool** AI tool calls through the chat interface to permit deleting tags, searching for docs matching key words and applying tags
-- [x] **Tag quality improvement:** Per-user tag blocklist (block/unblock via UI + API), YAKE candidates 5→15, background LLM quality sweep
+- [x] **Tag enrichment sweep:** Background LLM sweep adds new tags to under-tagged documents every 10 minutes (idle-only, 60-day freshness gate, fewest-tags-first priority). Brand-new tags propagate across all users' documents via LLM verification. `last_tag_checked_at` tracks per-document check history.
 - [ ] **Edit metadata (audit + sync):** Track updated_at/editor; ensure edits flow into retrieval ranking (and any caches).
 
 #### Phase 5 — Ingestion quality upgrades (chunking + enrichment)
@@ -163,3 +163,8 @@ Track your progress through the masterclass. Update this file as you complete mo
 #### Phase 8 — Deployment hardening
 
 - [ ] **TLS + hostname management:** Enable management of TLS certificates and public hostname for the UI.
+
+#### Future Improvements
+
+Implement some of the features present in https://github.com/basicmachines-co/basic-memory/tree/main
+Implement some of the features present in https://github.com/PromptEngineer/agentic-file-search

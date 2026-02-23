@@ -3,14 +3,24 @@ import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 from app.routers import threads, chat, documents
 from app.services.supabase import get_service_supabase_client
 from app.services.topic_consolidator import consolidate_all_users
 from app.services.community_builder import build_communities_for_all_users
 from app.services.tag_quality_sweep import sweep_random_user
+from app.services.activity import record_activity
+from app.services.tag_enrichment_sweep import run_enrichment_sweep
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+class ActivityMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        record_activity()
+        return await call_next(request)
 
 
 async def _community_rebuild_loop():
@@ -46,6 +56,17 @@ async def _tag_quality_sweep_loop():
             logger.exception("Tag quality sweep loop error")
 
 
+async def _tag_enrichment_sweep_loop():
+    interval = settings.tag_enrichment_sweep_interval_minutes * 60
+    while True:
+        await asyncio.sleep(interval)
+        logger.info("Running periodic tag enrichment sweep")
+        try:
+            await run_enrichment_sweep()
+        except Exception:
+            logger.exception("Tag enrichment sweep loop error")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Create documents storage bucket if it doesn't exist
@@ -68,10 +89,15 @@ async def lifespan(app: FastAPI):
     if settings.tag_quality_sweep_enabled:
         asyncio.create_task(_tag_quality_sweep_loop())
 
+    if settings.tag_enrichment_sweep_enabled:
+        asyncio.create_task(_tag_enrichment_sweep_loop())
+
     yield
 
 
 app = FastAPI(title="Agentic RAG", lifespan=lifespan)
+
+app.add_middleware(ActivityMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

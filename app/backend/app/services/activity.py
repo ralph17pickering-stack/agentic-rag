@@ -1,4 +1,10 @@
-"""In-memory idle detection — tracks last HTTP request timestamp."""
+"""In-memory idle detection — tracks last HTTP request timestamp.
+
+NOTE: This implementation is process-local. In multi-worker deployments
+(uvicorn --workers N > 1), each worker maintains its own independent
+timestamp. The enrichment sweep may run in one worker while another is
+actively serving requests. For single-worker deployments this is correct.
+"""
 from datetime import datetime, timezone, timedelta
 
 _last_activity: datetime = datetime.min.replace(tzinfo=timezone.utc)

@@ -164,3 +164,66 @@ async def test_run_enrichment_sweep_skips_when_all_fresh():
         result = await run_enrichment_sweep()
 
     assert result == {"skipped": "all_fresh"}
+
+
+@pytest.mark.asyncio
+async def test_run_enrichment_sweep_uses_python_cutoff_not_sql_expression():
+    """The or_ filter must use a computed ISO timestamp, not a SQL expression."""
+    from app.services.tag_enrichment_sweep import run_enrichment_sweep
+
+    captured_or_args = []
+
+    def make_mock_sb():
+        mock_sb = MagicMock()
+        or_mock = MagicMock()
+        or_mock.limit.return_value.execute.return_value.data = []
+        def capture_or(arg):
+            captured_or_args.append(arg)
+            return or_mock
+        mock_sb.table.return_value.select.return_value.or_ = capture_or
+        return mock_sb
+
+    with patch("app.services.tag_enrichment_sweep.is_idle", return_value=True), \
+         patch("app.services.tag_enrichment_sweep.get_service_supabase_client", side_effect=make_mock_sb):
+        await run_enrichment_sweep()
+
+    # Verify the or_ filter does NOT contain the SQL expression
+    assert captured_or_args, "or_ was never called"
+    for arg in captured_or_args:
+        assert "interval" not in arg, f"SQL interval expression found in filter: {arg!r}"
+        assert "now()" not in arg, f"SQL now() found in filter: {arg!r}"
+
+
+@pytest.mark.asyncio
+async def test_propagate_tag_encodes_multiword_tag_for_fts():
+    """Multi-word tags must be joined with & for valid tsquery syntax."""
+    from app.services.tag_enrichment_sweep import _propagate_tag
+
+    captured_fts_values = []
+
+    mock_sb = MagicMock()
+
+    # Novelty check — tag not found
+    novelty_mock = MagicMock()
+    novelty_mock.execute.return_value.data = []
+    mock_sb.table.return_value.select.return_value.filter.return_value.limit.return_value = novelty_mock
+
+    # FTS search — capture the value passed
+    fts_mock = MagicMock()
+    fts_mock.execute.return_value.data = []
+    # Also support novelty check chain: .filter(...).limit(1).execute().data
+    fts_mock.limit.return_value.execute.return_value.data = []
+    original_filter = mock_sb.table.return_value.select.return_value.filter
+
+    def capture_filter(col, op, val):
+        if op == "fts":
+            captured_fts_values.append(val)
+        return fts_mock
+
+    mock_sb.table.return_value.select.return_value.filter = capture_filter
+
+    await _propagate_tag(mock_sb, "carbon offset", origin_doc_id="doc-x")
+
+    assert captured_fts_values, "fts filter was never called"
+    assert captured_fts_values[0] == "carbon & offset", \
+        f"Expected 'carbon & offset', got {captured_fts_values[0]!r}"

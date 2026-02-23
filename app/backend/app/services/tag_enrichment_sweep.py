@@ -1,6 +1,6 @@
 """Background tag enrichment sweep — LLM-based tag discovery and propagation."""
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from pydantic import BaseModel
 from langsmith import traceable
@@ -135,10 +135,13 @@ async def _propagate_tag(sb, tag: str, origin_doc_id: str) -> int:
 
     # 2. Corpus search via tsvector — find distinct documents containing the term
     #    (exclude the origin document which already has the tag)
+    #    Encode as tsquery (AND of all words) — multi-word tags like "carbon offset"
+    #    are not valid tsquery syntax and must be joined with &.
+    tsquery = " & ".join(tag.split())
     chunk_rows = (
         sb.table("chunks")
         .select("document_id")
-        .filter("tsv", "fts", tag)
+        .filter("tsv", "fts", tsquery)
         .execute()
         .data
     ) or []
@@ -247,12 +250,15 @@ async def run_enrichment_sweep() -> dict:
 
     sb = get_service_supabase_client()
     max_age = settings.tag_enrichment_max_age_days
+    # Compute cutoff in Python — PostgREST does not evaluate SQL expressions like
+    # "now() - interval '60 days'" in .or_() filter strings; it treats them as literals.
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=max_age)).isoformat()
 
     # All-clear gate: are there any documents due for a check?
     stale = (
         sb.table("documents")
         .select("id")
-        .or_(f"last_tag_checked_at.is.null,last_tag_checked_at.lt.now() - interval '{max_age} days'")
+        .or_(f"last_tag_checked_at.is.null,last_tag_checked_at.lt.{cutoff}")
         .limit(1)
         .execute()
         .data
@@ -267,7 +273,7 @@ async def run_enrichment_sweep() -> dict:
     rows = (
         sb.table("documents")
         .select("id, user_id, title, summary, topics")
-        .or_(f"last_tag_checked_at.is.null,last_tag_checked_at.lt.now() - interval '{max_age} days'")
+        .or_(f"last_tag_checked_at.is.null,last_tag_checked_at.lt.{cutoff}")
         .order("last_tag_checked_at", desc=False, nullsfirst=True)
         .limit(batch_size * 4)  # fetch extra, sort by tag count in Python
         .execute()

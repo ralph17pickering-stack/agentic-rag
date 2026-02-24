@@ -45,6 +45,27 @@ When a browser test triggers an action that involves background processing (LLM 
 
 This prevents burning tokens on repeated `browser_wait_for` / `browser_snapshot` calls while waiting for a slow local LLM or ingestion pipeline.
 
+## Applying Database Migrations
+
+`psql` is not in PATH. Apply migrations via the pg-meta HTTP API:
+
+```bash
+curl -s "http://127.0.0.1:8000/pg/query" \
+  -H "Content-Type: application/json" \
+  -d "{\"query\": \"$(cat /home/ralph/rag/db/migrations/<filename>.sql | tr '\n' ' ' | sed 's/"/\\"/g')\"}"
+```
+
+Or for multi-statement migrations, POST each statement separately, or paste directly into Supabase Studio at **http://localhost:54323** → SQL Editor.
+
+To verify a migration worked, query the schema:
+```bash
+curl -s "http://127.0.0.1:8000/pg/query" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '\''<table>'\'' AND column_name = '\''<column>'\''"}' | python3 -m json.tool
+```
+
+Note: `db/` is in `.gitignore` — use `git add -f db/migrations/<file>.sql` to track migration files.
+
 ## Test Credentials
 - Email: `test@agentic-rag.dev`
 - Password: `TestPass123!`

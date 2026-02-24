@@ -521,3 +521,51 @@ fetchDocuments(true).catch(() => {})  // best-effort; never throw
 ### Pending-State Pattern for Deferred Actions
 
 **For actions that should only execute on an explicit "Save" (not immediately on click), use a local `Set` of pending items.** The Ban/block button toggles the tag into/out of `pendingBlocks`; the tag chip shows destructive styling with strikethrough; `handleSave` iterates the set and calls the real API. Cancelling the modal resets the set. This gives clear visual feedback without side effects until the user commits.
+
+---
+
+## Session: Tag Enrichment Sweep
+
+### PostgREST Does Not Evaluate SQL Expressions in Filter Values
+
+**Never use SQL expressions like `now() - interval '60 days'` as a value in a Supabase Python client filter — PostgREST passes them as literal strings, not SQL.**
+
+The `.or_()` filter `last_tag_checked_at.lt.now() - interval '60 days'` silently fails: PostgreSQL receives the string `now() - interval '60 days'` as a timestamptz literal, rejects it, and the branch matches nothing. Documents with old `last_tag_checked_at` values are never re-checked.
+
+**Fix:** Compute the cutoff in Python before building the filter string:
+```python
+cutoff = (datetime.now(timezone.utc) - timedelta(days=max_age)).isoformat()
+.or_(f"last_tag_checked_at.is.null,last_tag_checked_at.lt.{cutoff}")
+```
+
+This class of bug won't appear in unit tests that mock the Supabase client — integration or smoke tests are needed to catch it.
+
+### Multi-Word Tags Must Be Encoded as tsquery Before Passing to the `fts` Filter
+
+**Supabase's `fts` PostgREST filter calls `to_tsquery()` on the value. Multi-word strings like `"carbon offset"` are not valid tsquery syntax and cause a PostgreSQL error.**
+
+The enrichment prompt generates 1–3 word tags, so this affects the propagation search for any tag with a space. The error propagates through `_propagate_tag → enrich_batch → run_enrichment_sweep` and is caught by the loop-level exception handler, silently aborting the entire batch.
+
+**Fix:** Join words with ` & ` before passing to the filter:
+```python
+tsquery = " & ".join(tag.split())
+.filter("tsv", "fts", tsquery)
+```
+
+This is an AND-query (all words must appear), which is the correct semantic for tag propagation.
+
+### Apply Database Migrations via the pg-meta HTTP API
+
+**`psql` is not installed on the host machine. The correct method for applying migrations is the pg-meta query endpoint at `http://127.0.0.1:8000/pg/query`.**
+
+```bash
+curl -s "http://127.0.0.1:8000/pg/query" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "<SQL here>"}'
+```
+
+For multi-statement migrations, paste into Supabase Studio (http://localhost:54323 → SQL Editor) as an alternative. This is now documented in `CLAUDE.md` under "Applying Database Migrations".
+
+### In-Memory State in FastAPI Has a Multi-Worker Caveat
+
+**Module-level globals (e.g., `_last_activity` for idle detection) are process-local.** With `uvicorn --workers N > 1`, each worker maintains its own independent copy — one worker may be idle while another is actively serving requests. For single-worker deployments this is correct and simple. Document the limitation clearly in the module docstring so future engineers don't silently deploy multi-worker and wonder why the idle guard stops working.
